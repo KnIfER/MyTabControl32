@@ -170,7 +170,7 @@ static inline TAB_ITEM* TAB_GetItem(const TAB_INFO *infoPtr, INT i)
 static void TAB_InvalidateTabArea(const TAB_INFO *);
 static void TAB_EnsureSelectionVisible(TAB_INFO *);
 static void TAB_DrawItemInterior(const TAB_INFO *, HDC, INT, RECT*);
-static LRESULT TAB_DeselectAll(TAB_INFO *, BOOL);
+static LRESULT _DeselectAll(TAB_INFO *, BOOL);
 static BOOL TAB_InternalGetItemRect(const TAB_INFO *, INT, RECT*, RECT*);
 
 static BOOL TAB_SendSimpleNotify (const TAB_INFO *infoPtr, UINT code)
@@ -210,8 +210,7 @@ static void TAB_DumpItemExternalT(const TCITEMW *pti, UINT iItem, BOOL isW)
 	}
 }
 
-static void
-TAB_DumpItemInternal(const TAB_INFO *infoPtr, UINT iItem)
+static void TAB_DumpItemInternal(const TAB_INFO *infoPtr, UINT iItem)
 {
 	if (TRACE_ON(tab)) {
 		TAB_ITEM *ti = TAB_GetItem(infoPtr, iItem);
@@ -225,7 +224,7 @@ TAB_DumpItemInternal(const TAB_INFO *infoPtr, UINT iItem)
 
 /* RETURNS
 *   the index of the selected tab, or -1 if no tab is selected. */
-static inline LRESULT TAB_GetCurSel (const TAB_INFO *infoPtr)
+static inline LRESULT _GetCurSel (const TAB_INFO *infoPtr)
 {
 	TRACE("(%p)\n", infoPtr);
 	return infoPtr->iSelected;
@@ -233,19 +232,19 @@ static inline LRESULT TAB_GetCurSel (const TAB_INFO *infoPtr)
 
 /* RETURNS
 *   the index of the tab item that has the focus. */
-static inline LRESULT TAB_GetCurFocus (const TAB_INFO *infoPtr)
+static inline LRESULT _GetCurFocus (const TAB_INFO *infoPtr)
 {
 	TRACE("(%p)\n", infoPtr);
 	return infoPtr->uFocus;
 }
 
-static inline LRESULT TAB_GetToolTips (const TAB_INFO *infoPtr)
+static inline LRESULT _GetToolTips (const TAB_INFO *infoPtr)
 {
 	TRACE("(%p)\n", infoPtr);
 	return (LRESULT)infoPtr->hwndToolTip;
 }
 
-static inline LRESULT TAB_SetCurSel (TAB_INFO *infoPtr, INT iItem)
+static inline LRESULT _SetCurSel (TAB_INFO *infoPtr, INT iItem)
 {
 	INT prevItem = infoPtr->iSelected;
 
@@ -277,7 +276,7 @@ static inline LRESULT TAB_SetCurSel (TAB_INFO *infoPtr, INT iItem)
 	return prevItem;
 }
 
-static LRESULT TAB_SetCurFocus (TAB_INFO *infoPtr, INT iItem)
+static LRESULT _SetCurFocus (TAB_INFO *infoPtr, INT iItem)
 {
 	TRACE("(%p %d)\n", infoPtr, iItem);
 
@@ -328,14 +327,14 @@ static LRESULT TAB_SetCurFocus (TAB_INFO *infoPtr, INT iItem)
 	return 0;
 }
 
-static inline LRESULT TAB_SetToolTips (TAB_INFO *infoPtr, HWND hwndToolTip)
+static inline LRESULT _SetToolTips (TAB_INFO *infoPtr, HWND hwndToolTip)
 {
 	TRACE("%p %p\n", infoPtr, hwndToolTip);
 	infoPtr->hwndToolTip = hwndToolTip;
 	return 0;
 }
 
-static inline LRESULT TAB_SetPadding (TAB_INFO *infoPtr, LPARAM lParam)
+static inline LRESULT _SetPadding (TAB_INFO *infoPtr, LPARAM lParam)
 {
 	TRACE("(%p %d %d)\n", infoPtr, LOWORD(lParam), HIWORD(lParam));
 	infoPtr->uHItemPadding_s = LOWORD(lParam);
@@ -443,18 +442,18 @@ static BOOL TAB_InternalGetItemRect(
 	return (itemRect->left < clientRect.right) && (itemRect->right > clientRect.left);
 }
 
-static inline BOOL TAB_GetItemRect(const TAB_INFO *infoPtr, INT item, RECT *rect)
+static inline BOOL _GetItemRect(const TAB_INFO *infoPtr, INT item, RECT *rect)
 {
 	TRACE("(%p, %d, %p)\n", infoPtr, item, rect);
 	return TAB_InternalGetItemRect(infoPtr, item, rect, NULL);
 }
 
 /******************************************************************************
-* TAB_KeyDown
+* _KeyDown
 *
 * This method is called to handle keyboard input
 */
-static LRESULT TAB_KeyDown(TAB_INFO* infoPtr, WPARAM keyCode, LPARAM lParam)
+static LRESULT _KeyDown(TAB_INFO* infoPtr, WPARAM keyCode, LPARAM lParam)
 {
 	INT newItem = -1;
 	NMTCKEYDOWN nm;
@@ -479,7 +478,7 @@ static LRESULT TAB_KeyDown(TAB_INFO* infoPtr, WPARAM keyCode, LPARAM lParam)
 
 	/* If we changed to a valid item, change focused item */
 	if (newItem >= 0 && newItem < infoPtr->uNumItem && infoPtr->uFocus != newItem)
-		TAB_SetCurFocus(infoPtr, newItem);
+		_SetCurFocus(infoPtr, newItem);
 
 	return 0;
 }
@@ -487,7 +486,7 @@ static LRESULT TAB_KeyDown(TAB_INFO* infoPtr, WPARAM keyCode, LPARAM lParam)
 /*
 * WM_KILLFOCUS handler
 */
-static void TAB_KillFocus(TAB_INFO *infoPtr)
+static void _KillFocus(TAB_INFO *infoPtr)
 {
 	/* clear current focused item back to selected for TCS_BUTTONS */
 	if ((infoPtr->dwStyle & TCS_BUTTONS) && (infoPtr->uFocus != infoPtr->iSelected))
@@ -502,12 +501,12 @@ static void TAB_KillFocus(TAB_INFO *infoPtr)
 }
 
 /******************************************************************************
-* TAB_FocusChanging
+* _FocusChanging
 *
 * This method is called whenever the focus goes in or out of this control
 * it is used to update the visual state of the control.
 */
-static void TAB_FocusChanging(const TAB_INFO *infoPtr)
+static void _FocusChanging(const TAB_INFO *infoPtr)
 {
 	RECT      selectedRect;
 	BOOL      isVisible;
@@ -551,14 +550,14 @@ static INT TAB_InternalHitTest (const TAB_INFO *infoPtr, POINT pt, UINT *flags)
 	return -1;
 }
 
-static inline LRESULT TAB_HitTest (const TAB_INFO *infoPtr, LPTCHITTESTINFO lptest)
+static inline LRESULT _HitTest (const TAB_INFO *infoPtr, LPTCHITTESTINFO lptest)
 {
 	TRACE("(%p, %p)\n", infoPtr, lptest);
 	return TAB_InternalHitTest (infoPtr, lptest->pt, &lptest->flags);
 }
 
 /******************************************************************************
-* TAB_NCHitTest
+* _NCHitTest
 *
 * Napster v2b5 has a tab control for its main navigation which has a client
 * area that covers the whole area of the dialog pages.
@@ -569,7 +568,7 @@ static inline LRESULT TAB_HitTest (const TAB_INFO *infoPtr, LPTCHITTESTINFO lpte
 * FIXME: WM_NCHITTEST handling correct ? Fix it if you know that Windows
 * doesn't do it that way. Maybe depends on tab control styles ?
 */
-static inline LRESULT TAB_NCHitTest (const TAB_INFO *infoPtr, LPARAM lParam)
+static inline LRESULT _NCHitTest (const TAB_INFO *infoPtr, LPARAM lParam)
 {
 	POINT pt;
 	UINT dummyflag;
@@ -584,7 +583,7 @@ static inline LRESULT TAB_NCHitTest (const TAB_INFO *infoPtr, LPARAM lParam)
 		return HTCLIENT;
 }
 
-static LRESULT TAB_LButtonDown (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
+static LRESULT _LButtonDown (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 {
 	POINT pt;
 	INT newItem;
@@ -639,9 +638,9 @@ static LRESULT TAB_LButtonDown (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 				return 0;
 
 			if (pressed)
-				TAB_DeselectAll (infoPtr, FALSE);
+				_DeselectAll (infoPtr, FALSE);
 			else
-				TAB_SetCurSel(infoPtr, newItem);
+				_SetCurSel(infoPtr, newItem);
 
 			TAB_SendSimpleNotify(infoPtr, TCN_SELCHANGE);
 		}
@@ -650,14 +649,14 @@ static LRESULT TAB_LButtonDown (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-static inline LRESULT TAB_LButtonUp (const TAB_INFO *infoPtr)
+static inline LRESULT _LButtonUp (const TAB_INFO *infoPtr)
 {
 	TAB_SendSimpleNotify(infoPtr, NM_CLICK);
 
 	return 0;
 }
 
-static inline void TAB_RButtonUp (const TAB_INFO *infoPtr)
+static inline void _RButtonUp (const TAB_INFO *infoPtr)
 {
 	TAB_SendSimpleNotify(infoPtr, NM_RCLICK);
 }
@@ -760,7 +759,7 @@ static void CALLBACK TAB_HotTrackTimerProc
 * selectively redraw those tab items.
 *
 * If the caller has a mouse position, it can supply it through the pos
-* parameter.  For example, TAB_MouseMove does this.  Otherwise, the caller
+* parameter.  For example, _MouseMove does this.  Otherwise, the caller
 * supplies NULL and this function determines the current mouse position
 * itself.
 */
@@ -840,11 +839,11 @@ static void TAB_RecalcHotTrack
 }
 
 /******************************************************************************
-* TAB_MouseMove
+* _MouseMove
 *
 * Handles the mouse-move event.  Updates tooltips.  Updates hot-tracking.
 */
-static LRESULT TAB_MouseMove (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
+static LRESULT _MouseMove (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 {
 	int redrawLeave;
 	int redrawEnter;
@@ -869,7 +868,7 @@ static LRESULT TAB_MouseMove (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 * Calculates the tab control's display area given the window rectangle or
 * the window rectangle given the requested display rectangle.
 */
-static LRESULT TAB_AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT prc)
+static LRESULT _AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT prc)
 {
 	LONG *iRightBottom, *iLeftTop;
 
@@ -918,12 +917,12 @@ static LRESULT TAB_AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT pr
 }
 
 /******************************************************************************
-* TAB_OnHScroll
+* _OnHScroll
 *
 * This method will handle the notification from the scroll control and
 * perform the scrolling operation on the tab control.
 */
-static LRESULT TAB_OnHScroll(TAB_INFO *infoPtr, int nScrollCode, int nPos)
+static LRESULT _OnHScroll(TAB_INFO *infoPtr, int nScrollCode, int nPos)
 {
 	if(nScrollCode == SB_THUMBPOSITION && nPos != infoPtr->leftmostVisible)
 	{
@@ -1366,8 +1365,7 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 }
 
 
-static void
-TAB_EraseTabInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, const RECT *drawRect)
+static void TAB_EraseTabInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, const RECT *drawRect)
 {
 	HBRUSH   hbr = CreateSolidBrush (comctl32_color.clrBtnFace);
 	BOOL     deleteBrush = TRUE;
@@ -1441,8 +1439,7 @@ TAB_EraseTabInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, const RECT *dr
 * This method is used to draw the interior (text and icon) of a single tab
 * into the tab control.
 */
-static void
-TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RECT *drawRect)
+static void TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RECT *drawRect)
 {
 	RECT localRect;
 
@@ -2074,13 +2071,13 @@ static void TAB_Refresh (const TAB_INFO *infoPtr, HDC hdc)
 	SelectObject (hdc, hOldFont);
 }
 
-static inline DWORD TAB_GetRowCount (const TAB_INFO *infoPtr)
+static inline DWORD _GetRowCount (const TAB_INFO *infoPtr)
 {
 	TRACE("(%p)\n", infoPtr);
 	return infoPtr->uNumRows;
 }
 
-static inline LRESULT TAB_SetRedraw (TAB_INFO *infoPtr, BOOL doRedraw)
+static inline LRESULT _SetRedraw (TAB_INFO *infoPtr, BOOL doRedraw)
 {
 	infoPtr->DoRedraw = doRedraw;
 	return 0;
@@ -2092,8 +2089,7 @@ static inline LRESULT TAB_SetRedraw (TAB_INFO *infoPtr, BOOL doRedraw)
 * This method will make sure that the current selection is completely
 * visible by scrolling until it is.
 */
-static void TAB_EnsureSelectionVisible(
-	TAB_INFO* infoPtr)
+static void TAB_EnsureSelectionVisible(TAB_INFO* infoPtr)
 {
 	INT iSelected = infoPtr->iSelected;
 	INT iOrigLeftmostVisible = infoPtr->leftmostVisible;
@@ -2206,7 +2202,7 @@ static void TAB_InvalidateTabArea(const TAB_INFO *infoPtr)
 	rInvalidate = clientRect;
 	rAdjClient = clientRect;
 
-	TAB_AdjustRect(infoPtr, 0, &rAdjClient);
+	_AdjustRect(infoPtr, 0, &rAdjClient);
 
 	TAB_InternalGetItemRect(infoPtr, infoPtr->uNumItem-1 , &rect, NULL);
 	if (infoPtr->dwStyle & TCS_BOTTOM)
@@ -2237,7 +2233,7 @@ static void TAB_InvalidateTabArea(const TAB_INFO *infoPtr)
 	InvalidateRect(infoPtr->hwnd, &rInvalidate, TRUE);
 }
 
-static inline LRESULT TAB_Paint (TAB_INFO *infoPtr, HDC hdcPaint)
+static inline LRESULT _Paint (TAB_INFO *infoPtr, HDC hdcPaint)
 {
 	HDC hdc;
 	PAINTSTRUCT ps;
@@ -2258,7 +2254,7 @@ static inline LRESULT TAB_Paint (TAB_INFO *infoPtr, HDC hdcPaint)
 	return 0;
 }
 
-static LRESULT TAB_InsertItemT (TAB_INFO *infoPtr, INT iItem, const TCITEMW *pti, BOOL bUnicode)
+static LRESULT _InsertItemT (TAB_INFO *infoPtr, INT iItem, const TCITEMW *pti, BOOL bUnicode)
 {
 	TAB_ITEM *item;
 	RECT rect;
@@ -2316,12 +2312,12 @@ static LRESULT TAB_InsertItemT (TAB_INFO *infoPtr, INT iItem, const TCITEMW *pti
 
 	/* If we haven't set the current focus yet, set it now. */
 	if (infoPtr->uFocus == -1)
-		TAB_SetCurFocus(infoPtr, iItem);
+		_SetCurFocus(infoPtr, iItem);
 
 	return iItem;
 }
 
-static LRESULT TAB_SetItemSize (TAB_INFO *infoPtr, INT cx, INT cy)
+static LRESULT _SetItemSize (TAB_INFO *infoPtr, INT cx, INT cy)
 {
 	LONG lResult = 0;
 	BOOL bNeedPaint = FALSE;
@@ -2355,7 +2351,7 @@ static LRESULT TAB_SetItemSize (TAB_INFO *infoPtr, INT cx, INT cy)
 	return lResult;
 }
 
-static inline LRESULT TAB_SetMinTabWidth (TAB_INFO *infoPtr, INT cx)
+static inline LRESULT _SetMinTabWidth (TAB_INFO *infoPtr, INT cx)
 {
 	INT oldcx = 0;
 
@@ -2370,7 +2366,7 @@ static inline LRESULT TAB_SetMinTabWidth (TAB_INFO *infoPtr, INT cx)
 	return oldcx;
 }
 
-static inline LRESULT TAB_HighlightItem (TAB_INFO *infoPtr, INT iItem, BOOL fHighlight)
+static inline LRESULT _HighlightItem (TAB_INFO *infoPtr, INT iItem, BOOL fHighlight)
 {
 	LPDWORD lpState;
 	DWORD oldState;
@@ -2395,7 +2391,7 @@ static inline LRESULT TAB_HighlightItem (TAB_INFO *infoPtr, INT iItem, BOOL fHig
 	return TRUE;
 }
 
-static LRESULT TAB_SetItemT (TAB_INFO *infoPtr, INT iItem, LPTCITEMW tabItem, BOOL bUnicode)
+static LRESULT _SetItemT (TAB_INFO *infoPtr, INT iItem, LPTCITEMW tabItem, BOOL bUnicode)
 {
 	TAB_ITEM *wineItem;
 
@@ -2438,14 +2434,14 @@ static LRESULT TAB_SetItemT (TAB_INFO *infoPtr, INT iItem, LPTCITEMW tabItem, BO
 	return TRUE;
 }
 
-static inline LRESULT TAB_GetItemCount (const TAB_INFO *infoPtr)
+static inline LRESULT _GetItemCount (const TAB_INFO *infoPtr)
 {
 	TRACE("\n");
 	return infoPtr->uNumItem;
 }
 
 
-static LRESULT TAB_GetItemT (TAB_INFO *infoPtr, INT iItem, LPTCITEMW tabItem, BOOL bUnicode)
+static LRESULT _GetItemT (TAB_INFO *infoPtr, INT iItem, LPTCITEMW tabItem, BOOL bUnicode)
 {
 	TAB_ITEM *wineItem;
 
@@ -2490,7 +2486,7 @@ static LRESULT TAB_GetItemT (TAB_INFO *infoPtr, INT iItem, LPTCITEMW tabItem, BO
 }
 
 
-static LRESULT TAB_DeleteItem (TAB_INFO *infoPtr, INT iItem)
+static LRESULT _DeleteItem (TAB_INFO *infoPtr, INT iItem)
 {
 	TAB_ITEM *item;
 
@@ -2536,22 +2532,22 @@ static LRESULT TAB_DeleteItem (TAB_INFO *infoPtr, INT iItem)
 	return TRUE;
 }
 
-static inline LRESULT TAB_DeleteAllItems (TAB_INFO *infoPtr)
+static inline LRESULT _DeleteAllItems (TAB_INFO *infoPtr)
 {
 	TRACE("(%p)\n", infoPtr);
 	while (infoPtr->uNumItem)
-		TAB_DeleteItem (infoPtr, 0);
+		_DeleteItem (infoPtr, 0);
 	return TRUE;
 }
 
 
-static inline LRESULT TAB_GetFont (const TAB_INFO *infoPtr)
+static inline LRESULT _GetFont (const TAB_INFO *infoPtr)
 {
 	TRACE("(%p) returning %p\n", infoPtr, infoPtr->hFont);
 	return (LRESULT)infoPtr->hFont;
 }
 
-static inline LRESULT TAB_SetFont (TAB_INFO *infoPtr, HFONT hNewFont)
+static inline LRESULT _SetFont (TAB_INFO *infoPtr, HFONT hNewFont)
 {
 	TRACE("(%p,%p)\n", infoPtr, hNewFont);
 
@@ -2565,13 +2561,13 @@ static inline LRESULT TAB_SetFont (TAB_INFO *infoPtr, HFONT hNewFont)
 }
 
 
-static inline LRESULT TAB_GetImageList (const TAB_INFO *infoPtr)
+static inline LRESULT _GetImageList (const TAB_INFO *infoPtr)
 {
 	TRACE("\n");
 	return (LRESULT)infoPtr->himl;
 }
 
-static inline LRESULT TAB_SetImageList (TAB_INFO *infoPtr, HIMAGELIST himlNew)
+static inline LRESULT _SetImageList (TAB_INFO *infoPtr, HIMAGELIST himlNew)
 {
 	HIMAGELIST himlPrev = infoPtr->himl;
 	TRACE("himl=%p\n", himlNew);
@@ -2581,13 +2577,13 @@ static inline LRESULT TAB_SetImageList (TAB_INFO *infoPtr, HIMAGELIST himlNew)
 	return (LRESULT)himlPrev;
 }
 
-static inline LRESULT TAB_GetUnicodeFormat (const TAB_INFO *infoPtr)
+static inline LRESULT _GetUnicodeFormat (const TAB_INFO *infoPtr)
 {
 	TRACE("(%p)\n", infoPtr);
 	return infoPtr->bUnicode;
 }
 
-static inline LRESULT TAB_SetUnicodeFormat (TAB_INFO *infoPtr, BOOL bUnicode)
+static inline LRESULT _SetUnicodeFormat (TAB_INFO *infoPtr, BOOL bUnicode)
 {
 	BOOL bTemp = infoPtr->bUnicode;
 
@@ -2597,7 +2593,7 @@ static inline LRESULT TAB_SetUnicodeFormat (TAB_INFO *infoPtr, BOOL bUnicode)
 	return bTemp;
 }
 
-static inline LRESULT TAB_Size (TAB_INFO *infoPtr)
+static inline LRESULT _Size (TAB_INFO *infoPtr)
 {
 	/* I'm not really sure what the following code was meant to do.
 	This is what it is doing:
@@ -2633,7 +2629,7 @@ static inline LRESULT TAB_Size (TAB_INFO *infoPtr)
 }
 
 
-static LRESULT TAB_Create (HWND hwnd, LPARAM lParam)
+static LRESULT _Create (HWND hwnd, LPARAM lParam)
 {
 	TAB_INFO *infoPtr;
 	TEXTMETRICW fontMetrics;
@@ -2737,7 +2733,7 @@ static LRESULT TAB_Create (HWND hwnd, LPARAM lParam)
 	return 0;
 }
 
-static LRESULT TAB_Destroy (TAB_INFO *infoPtr)
+static LRESULT _Destroy (TAB_INFO *infoPtr)
 {
 	INT iItem;
 
@@ -2787,7 +2783,7 @@ static LRESULT TAB_NCCalcSize(WPARAM wParam)
 	return WVR_ALIGNTOP;
 }
 
-static inline LRESULT TAB_SetItemExtra (TAB_INFO *infoPtr, INT cbInfo)
+static inline LRESULT _SetItemExtra (TAB_INFO *infoPtr, INT cbInfo)
 {
 	TRACE("(%p %d)\n", infoPtr, cbInfo);
 
@@ -2797,7 +2793,7 @@ static inline LRESULT TAB_SetItemExtra (TAB_INFO *infoPtr, INT cbInfo)
 	return TRUE;
 }
 
-static LRESULT TAB_RemoveImage (TAB_INFO *infoPtr, INT image)
+static LRESULT _RemoveImage (TAB_INFO *infoPtr, INT image)
 {
 	TRACE("%p %d\n", infoPtr, image);
 
@@ -2827,7 +2823,7 @@ static LRESULT TAB_RemoveImage (TAB_INFO *infoPtr, INT image)
 	return 0;
 }
 
-static LRESULT TAB_SetExtendedStyle (TAB_INFO *infoPtr, DWORD exMask, DWORD exStyle)
+static LRESULT _SetExtendedStyle (TAB_INFO *infoPtr, DWORD exMask, DWORD exStyle)
 {
 	DWORD prevstyle = infoPtr->exStyle;
 
@@ -2853,13 +2849,12 @@ static LRESULT TAB_SetExtendedStyle (TAB_INFO *infoPtr, DWORD exMask, DWORD exSt
 	return prevstyle;
 }
 
-static inline LRESULT TAB_GetExtendedStyle (const TAB_INFO *infoPtr)
+static inline LRESULT _GetExtendedStyle (const TAB_INFO *infoPtr)
 {
 	return infoPtr->exStyle;
 }
 
-static LRESULT
-TAB_DeselectAll (TAB_INFO *infoPtr, BOOL excludesel)
+static LRESULT _DeselectAll (TAB_INFO *infoPtr, BOOL excludesel)
 {
 	BOOL paint = FALSE;
 	INT i, selected = infoPtr->iSelected;
@@ -2904,11 +2899,9 @@ TAB_DeselectAll (TAB_INFO *infoPtr, BOOL excludesel)
 * RETURN:
 * Zero
 */
-static INT TAB_StyleChanged(TAB_INFO *infoPtr, WPARAM wStyleType,
-	const STYLESTRUCT *lpss)
+static INT _StyleChanged(TAB_INFO *infoPtr, WPARAM wStyleType, const STYLESTRUCT *lpss)
 {
-	TRACE("(styletype=%lx, styleOld=0x%08x, styleNew=0x%08x)\n",
-		wStyleType, lpss->styleOld, lpss->styleNew);
+	TRACE("(styletype=%lx, styleOld=0x%08x, styleNew=0x%08x)\n", wStyleType, lpss->styleOld, lpss->styleNew);
 
 	if (wStyleType != GWL_STYLE) return 0;
 
@@ -2925,174 +2918,77 @@ static LRESULT WINAPI TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 	TAB_INFO *infoPtr = TAB_GetInfoPtr(hwnd);
 
 	TRACE("hwnd=%p msg=%x wParam=%lx lParam=%lx\n", hwnd, uMsg, wParam, lParam);
+
 	if (!infoPtr && (uMsg != WM_CREATE))
 		return DefWindowProcW (hwnd, uMsg, wParam, lParam);
 
 	switch (uMsg)
 	{
-	case TCM_GETIMAGELIST:
-		return TAB_GetImageList (infoPtr);
-
-	case TCM_SETIMAGELIST:
-		return TAB_SetImageList (infoPtr, (HIMAGELIST)lParam);
-
-	case TCM_GETITEMCOUNT:
-		return TAB_GetItemCount (infoPtr);
-
+	case TCM_GETIMAGELIST: return _GetImageList (infoPtr);
+	case TCM_SETIMAGELIST: return _SetImageList (infoPtr, (HIMAGELIST)lParam);
+	case TCM_GETITEMCOUNT: return _GetItemCount (infoPtr);
 	case TCM_GETITEMA:
-	case TCM_GETITEMW:
-		return TAB_GetItemT (infoPtr, (INT)wParam, (LPTCITEMW)lParam, uMsg == TCM_GETITEMW);
-
+	case TCM_GETITEMW: return _GetItemT (infoPtr, (INT)wParam, (LPTCITEMW)lParam, uMsg == TCM_GETITEMW);
 	case TCM_SETITEMA:
-	case TCM_SETITEMW:
-		return TAB_SetItemT (infoPtr, (INT)wParam, (LPTCITEMW)lParam, uMsg == TCM_SETITEMW);
-
-	case TCM_DELETEITEM:
-		return TAB_DeleteItem (infoPtr, (INT)wParam);
-
-	case TCM_DELETEALLITEMS:
-		return TAB_DeleteAllItems (infoPtr);
-
-	case TCM_GETITEMRECT:
-		return TAB_GetItemRect (infoPtr, (INT)wParam, (LPRECT)lParam);
-
-	case TCM_GETCURSEL:
-		return TAB_GetCurSel (infoPtr);
-
-	case TCM_HITTEST:
-		return TAB_HitTest (infoPtr, (LPTCHITTESTINFO)lParam);
-
-	case TCM_SETCURSEL:
-		return TAB_SetCurSel (infoPtr, (INT)wParam);
-
+	case TCM_SETITEMW: return _SetItemT (infoPtr, (INT)wParam, (LPTCITEMW)lParam, uMsg == TCM_SETITEMW);
+	case TCM_DELETEITEM: return _DeleteItem (infoPtr, (INT)wParam);
+	case TCM_DELETEALLITEMS: return _DeleteAllItems (infoPtr);
+	case TCM_GETITEMRECT: return _GetItemRect (infoPtr, (INT)wParam, (LPRECT)lParam);
+	case TCM_GETCURSEL: return _GetCurSel (infoPtr);
+	case TCM_HITTEST: return _HitTest (infoPtr, (LPTCHITTESTINFO)lParam);
+	case TCM_SETCURSEL: return _SetCurSel (infoPtr, (INT)wParam);
 	case TCM_INSERTITEMA:
-	case TCM_INSERTITEMW:
-		return TAB_InsertItemT (infoPtr, (INT)wParam, (TCITEMW*)lParam, uMsg == TCM_INSERTITEMW);
+	case TCM_INSERTITEMW: return _InsertItemT (infoPtr, (INT)wParam, (TCITEMW*)lParam, uMsg == TCM_INSERTITEMW);
 
-	case TCM_SETITEMEXTRA:
-		return TAB_SetItemExtra (infoPtr, (INT)wParam);
-
-	case TCM_ADJUSTRECT:
-		return TAB_AdjustRect (infoPtr, (BOOL)wParam, (LPRECT)lParam);
-
-	case TCM_SETITEMSIZE:
-		return TAB_SetItemSize (infoPtr, (INT)LOWORD(lParam), (INT)HIWORD(lParam));
-
-	case TCM_REMOVEIMAGE:
-		return TAB_RemoveImage (infoPtr, (INT)wParam);
-
-	case TCM_SETPADDING:
-		return TAB_SetPadding (infoPtr, lParam);
-
-	case TCM_GETROWCOUNT:
-		return TAB_GetRowCount(infoPtr);
-
-	case TCM_GETUNICODEFORMAT:
-		return TAB_GetUnicodeFormat (infoPtr);
-
-	case TCM_SETUNICODEFORMAT:
-		return TAB_SetUnicodeFormat (infoPtr, (BOOL)wParam);
-
-	case TCM_HIGHLIGHTITEM:
-		return TAB_HighlightItem (infoPtr, (INT)wParam, (BOOL)LOWORD(lParam));
-
-	case TCM_GETTOOLTIPS:
-		return TAB_GetToolTips (infoPtr);
-
-	case TCM_SETTOOLTIPS:
-		return TAB_SetToolTips (infoPtr, (HWND)wParam);
-
-	case TCM_GETCURFOCUS:
-		return TAB_GetCurFocus (infoPtr);
-
-	case TCM_SETCURFOCUS:
-		return TAB_SetCurFocus (infoPtr, (INT)wParam);
-
-	case TCM_SETMINTABWIDTH:
-		return TAB_SetMinTabWidth(infoPtr, (INT)lParam);
-
-	case TCM_DESELECTALL:
-		return TAB_DeselectAll (infoPtr, (BOOL)wParam);
-
-	case TCM_GETEXTENDEDSTYLE:
-		return TAB_GetExtendedStyle (infoPtr);
-
-	case TCM_SETEXTENDEDSTYLE:
-		return TAB_SetExtendedStyle (infoPtr, wParam, lParam);
-
-	case WM_GETFONT:
-		return TAB_GetFont (infoPtr);
-
-	case WM_SETFONT:
-		return TAB_SetFont (infoPtr, (HFONT)wParam);
-
-	case WM_CREATE:
-		return TAB_Create (hwnd, lParam);
-
-	case WM_NCDESTROY:
-		return TAB_Destroy (infoPtr);
-
-	case WM_GETDLGCODE:
-		return DLGC_WANTARROWS | DLGC_WANTCHARS;
-
-	case WM_LBUTTONDOWN:
-		return TAB_LButtonDown (infoPtr, wParam, lParam);
-
-	case WM_LBUTTONUP:
-		return TAB_LButtonUp (infoPtr);
-
+	case TCM_SETITEMEXTRA: return _SetItemExtra (infoPtr, (INT)wParam);
+	case TCM_ADJUSTRECT: return _AdjustRect (infoPtr, (BOOL)wParam, (LPRECT)lParam);
+	case TCM_SETITEMSIZE: return _SetItemSize (infoPtr, (INT)LOWORD(lParam), (INT)HIWORD(lParam));
+	case TCM_REMOVEIMAGE: return _RemoveImage (infoPtr, (INT)wParam);
+	case TCM_SETPADDING: return _SetPadding (infoPtr, lParam);
+	case TCM_GETROWCOUNT: return _GetRowCount(infoPtr);
+	case TCM_GETUNICODEFORMAT: return _GetUnicodeFormat (infoPtr);
+	case TCM_SETUNICODEFORMAT: return _SetUnicodeFormat (infoPtr, (BOOL)wParam);
+	case TCM_HIGHLIGHTITEM: return _HighlightItem (infoPtr, (INT)wParam, (BOOL)LOWORD(lParam));
+	case TCM_GETTOOLTIPS: return _GetToolTips (infoPtr);
+	case TCM_SETTOOLTIPS: return _SetToolTips (infoPtr, (HWND)wParam);
+	case TCM_GETCURFOCUS: return _GetCurFocus (infoPtr);
+	case TCM_SETCURFOCUS: return _SetCurFocus (infoPtr, (INT)wParam);
+	case TCM_SETMINTABWIDTH: return _SetMinTabWidth(infoPtr, (INT)lParam);
+	case TCM_DESELECTALL: return _DeselectAll (infoPtr, (BOOL)wParam);
+	case TCM_GETEXTENDEDSTYLE: return _GetExtendedStyle (infoPtr);
+	case TCM_SETEXTENDEDSTYLE: return _SetExtendedStyle (infoPtr, wParam, lParam);
+	case WM_GETFONT: return _GetFont (infoPtr);
+	case WM_SETFONT: return _SetFont (infoPtr, (HFONT)wParam);
+	case WM_CREATE: return _Create (hwnd, lParam);
+	case WM_NCDESTROY: return _Destroy (infoPtr);
+	case WM_GETDLGCODE: return DLGC_WANTARROWS | DLGC_WANTCHARS;
+	case WM_LBUTTONDOWN: return _LButtonDown (infoPtr, wParam, lParam);
+	case WM_LBUTTONUP: return _LButtonUp (infoPtr);
 	case WM_NOTIFY:
 		return SendMessageW(infoPtr->hwndNotify, WM_NOTIFY, wParam, lParam);
-
-	case WM_RBUTTONUP:
-		TAB_RButtonUp (infoPtr);
+	case WM_RBUTTONUP: 
+		_RButtonUp (infoPtr);
 		return DefWindowProcW (hwnd, uMsg, wParam, lParam);
-
-	case WM_MOUSEMOVE:
-		return TAB_MouseMove (infoPtr, wParam, lParam);
-
+	case WM_MOUSEMOVE: return _MouseMove (infoPtr, wParam, lParam);
 	case WM_PRINTCLIENT:
-	case WM_PAINT:
-		return TAB_Paint (infoPtr, (HDC)wParam);
+	case WM_PAINT: return _Paint (infoPtr, (HDC)wParam);
+	case WM_SIZE: return _Size (infoPtr);
+	case WM_SETREDRAW: return _SetRedraw (infoPtr, (BOOL)wParam);
 
-	case WM_SIZE:
-		return TAB_Size (infoPtr);
+	case WM_HSCROLL: return _OnHScroll(infoPtr, (int)LOWORD(wParam), (int)HIWORD(wParam));
+	case WM_STYLECHANGED: return _StyleChanged(infoPtr, wParam, (LPSTYLESTRUCT)lParam);
 
-	case WM_SETREDRAW:
-		return TAB_SetRedraw (infoPtr, (BOOL)wParam);
-
-	case WM_HSCROLL:
-		return TAB_OnHScroll(infoPtr, (int)LOWORD(wParam), (int)HIWORD(wParam));
-
-	case WM_STYLECHANGED:
-		return TAB_StyleChanged(infoPtr, wParam, (LPSTYLESTRUCT)lParam);
-
-	case WM_SYSCOLORCHANGE:
-		//COMCTL32_RefreshSysColors(); //fixme
-		return 0;
-
-	case WM_THEMECHANGED:
-		return theme_changed (infoPtr);
-
-	case WM_KILLFOCUS:
-		TAB_KillFocus(infoPtr);
-	case WM_SETFOCUS:
-		TAB_FocusChanging(infoPtr);
-		break;   /* Don't disturb normal focus behavior */
-
-	case WM_KEYDOWN:
-		return TAB_KeyDown(infoPtr, wParam, lParam);
-
-	case WM_NCHITTEST:
-		return TAB_NCHitTest(infoPtr, lParam);
-
-	case WM_NCCALCSIZE:
-		return TAB_NCCalcSize(wParam);
+	case WM_SYSCOLORCHANGE: /* COMCTL32_RefreshSysColors(); //fixme */ return 0;
+	case WM_THEMECHANGED: return theme_changed (infoPtr);
+	case WM_KILLFOCUS: _KillFocus(infoPtr);
+	case WM_SETFOCUS:  _FocusChanging(infoPtr); break;   /* Don't disturb normal focus behavior */
+	case WM_KEYDOWN: return _KeyDown(infoPtr, wParam, lParam);
+	case WM_NCHITTEST: return _NCHitTest(infoPtr, lParam);
+	case WM_NCCALCSIZE: return TAB_NCCalcSize(wParam);
 
 	default:
 		if (uMsg >= WM_USER && uMsg < WM_APP && !COMCTL32_IsReflectedMessage(uMsg))
-			WARN("unknown msg %04x wp=%08lx lp=%08lx\n",
-				uMsg, wParam, lParam);
+			WARN("unknown msg %04x wp=%08lx lp=%08lx\n", uMsg, wParam, lParam);
 		break;
 	}
 	return DefWindowProcW(hwnd, uMsg, wParam, lParam);
