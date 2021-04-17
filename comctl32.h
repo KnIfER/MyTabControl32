@@ -135,7 +135,7 @@ typedef struct
     COLORREF clrInfoText;           /* COLOR_INFOTEXT                      */
 } COMCTL32_SysColor;
 
-COMCTL32_SysColor  comctl32_color;
-HBRUSH  COMCTL32_hPattern55AABrush;
+static COMCTL32_SysColor  comctl32_color;
+static HBRUSH  COMCTL32_hPattern55AABrush;
 
 #endif  /* __WINE_COMCTL32_H */

@@ -58,27 +58,27 @@ BOOL COMCTL32_IsReflectedMessage(UINT uMsg)
 #define debugstr_w  
 #define debugstr_a  
 
-void print(CHAR* msg, va_list args) {
+void print(const CHAR* msg, va_list args) {
     CHAR buffer[256];
     vsprintf_s(buffer,255, msg, args);
     OutputDebugStringA(buffer);
     OutputDebugStringA("\n");
 }
 
-int TRACE(CHAR* msg, ...) {
+int TRACE(const CHAR* msg, ...) {
     va_list args = NULL;
     va_start(args, msg);
     print(msg, args);
     return 0;
 };
-int FIXME(CHAR* msg) {
+int FIXME(const CHAR* msg) {
     va_list args = NULL;
     va_start(args, msg);
     print(msg, args);
     OutputDebugStringA("todoing\n");
     return 0;
 };
-int WARN(CHAR* msg, ...) {
+int WARN(const CHAR* msg, ...) {
     va_list args = NULL;
     va_start(args, msg);
     print(msg, args);
@@ -88,11 +88,12 @@ int WARN(CHAR* msg, ...) {
 
 int Free(void* ptr) {
   //  free(ptr);
+    return 0;
 };
 
 static CHAR buffer[512];
 
-CHAR* wine_dbgstr_rect(RECT* rect) {
+const CHAR* wine_dbgstr_rect(RECT* rect) {
     if (rect)
     {
         //CHAR* buffer = malloc(512);

@@ -1,9 +1,7 @@
 #include <windows.h>
 #include "comctl32.h"
 
-extern "C" {
-
-extern void TAB_Register(void);
+extern void TAB_Register();
 
 HWND _hWnd;
 
@@ -124,6 +122,4 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
 	return DefWindowProc(hwnd, message, wParam, lParam);
-}
-
 }

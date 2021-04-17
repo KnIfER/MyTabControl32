@@ -87,7 +87,7 @@
   <ItemGroup>
     <ClCompile Include="MyTabControl32.cpp" />
     <ClCompile Include="InsituDebug.cpp" />
-    <ClCompile Include="tab.c">
+    <ClCompile Include="tab.cpp">
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemGroup>

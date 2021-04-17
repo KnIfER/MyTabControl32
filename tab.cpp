@@ -161,7 +161,7 @@ static const WCHAR themeClass[] = L"Tab";
 static inline TAB_ITEM* TAB_GetItem(const TAB_INFO *infoPtr, INT i)
 {
 	assert(i >= 0 && i < infoPtr->uNumItem);
-	return DPA_GetPtr(infoPtr->items, i);
+	return (TAB_ITEM*)DPA_GetPtr(infoPtr->items, i);
 }
 
 /******************************************************************************
@@ -206,7 +206,7 @@ static void TAB_DumpItemExternalT(const TCITEMW *pti, UINT iItem, BOOL isW)
 		TRACE("external tab %d, mask=0x%08x, dwState=0x%08x, dwStateMask=0x%08x, cchTextMax=0x%08x\n",
 			iItem, pti->mask, pti->dwState, pti->dwStateMask, pti->cchTextMax);
 		TRACE("external tab %d,   iImage=%d, lParam=0x%08lx, pszTextW=%s\n",
-			iItem, pti->iImage, pti->lParam, isW ? debugstr_w(pti->pszText) : debugstr_a((LPSTR)pti->pszText));
+			iItem, pti->iImage, pti->lParam, isW ? debugstr_w(pti->pszText) : (LPWSTR)debugstr_a((LPSTR)pti->pszText));
 	}
 }
 
@@ -1057,8 +1057,8 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 	*/
 	hdc = GetDC(infoPtr->hwnd);
 
-	hFont = infoPtr->hFont ? infoPtr->hFont : GetStockObject (SYSTEM_FONT);
-	hOldFont = SelectObject (hdc, hFont);
+	hFont = infoPtr->hFont ? infoPtr->hFont : (HFONT)GetStockObject (SYSTEM_FONT);
+	hOldFont = (HFONT) SelectObject (hdc, hFont);
 
 	/*
 	* We will base the rectangle calculations on the client rectangle
@@ -1551,8 +1551,8 @@ static void TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RE
 	* Text pen
 	*/
 	htextPen = CreatePen( PS_SOLID, 1, comctl32_color.clrBtnText );
-	holdPen  = SelectObject(hdc, htextPen);
-	hOldFont = SelectObject(hdc, infoPtr->hFont);
+	holdPen  = (HPEN) SelectObject(hdc, htextPen);
+	hOldFont = (HFONT)SelectObject(hdc, infoPtr->hFont);
 
 	/*
 	* Setup for text output
@@ -2044,7 +2044,7 @@ static void TAB_Refresh (const TAB_INFO *infoPtr, HDC hdc)
 	if (!infoPtr->DoRedraw)
 		return;
 
-	hOldFont = SelectObject (hdc, infoPtr->hFont);
+	hOldFont = (HFONT)SelectObject (hdc, infoPtr->hFont);
 
 	if (infoPtr->dwStyle & TCS_BUTTONS)
 	{
@@ -2268,7 +2268,7 @@ static LRESULT _InsertItemT (TAB_INFO *infoPtr, INT iItem, const TCITEMW *pti, B
 
 	TAB_DumpItemExternalT(pti, iItem, bUnicode);
 
-	if (!(item = Alloc(TAB_ITEM_SIZE(infoPtr)))) return FALSE;
+	if (!(item = (TAB_ITEM*)Alloc(TAB_ITEM_SIZE(infoPtr)))) return FALSE;
 	if (DPA_InsertPtr(infoPtr->items, iItem, item) == -1)
 	{
 		Free(item);
@@ -2637,7 +2637,7 @@ static LRESULT _Create (HWND hwnd, LPARAM lParam)
 	HFONT hOldFont;
 	DWORD style;
 
-	infoPtr = Alloc (sizeof(TAB_INFO));
+	infoPtr = (TAB_INFO*)Alloc (sizeof(TAB_INFO));
 
 	SetWindowLongPtrW(hwnd, 0, (DWORD_PTR)infoPtr);
 
@@ -2706,7 +2706,7 @@ static LRESULT _Create (HWND hwnd, LPARAM lParam)
 	* a font.
 	*/
 	hdc = GetDC(hwnd);
-	hOldFont = SelectObject (hdc, GetStockObject (SYSTEM_FONT));
+	hOldFont = (HFONT)SelectObject (hdc, GetStockObject (SYSTEM_FONT));
 
 	/* Use the system font to determine the initial height of a tab. */
 	GetTextMetricsW(hdc, &fontMetrics);
@@ -2997,7 +2997,7 @@ static LRESULT WINAPI TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 
 #define WC_TABCONTROLM          L"MyTabControl32"
 
-void TAB_Register(void)
+void TAB_Register()
 {
 	WNDCLASSW wndClass;
 
@@ -3014,7 +3014,7 @@ void TAB_Register(void)
 }
 
 
-void TAB_Unregister (void)
+void TAB_Unregister ()
 {
 	UnregisterClassW (WC_TABCONTROLM, NULL);
 }

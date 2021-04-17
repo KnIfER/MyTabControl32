@@ -18,7 +18,7 @@
     <ClCompile Include="MyTabControl32.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="tab.c">
+    <ClCompile Include="tab.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="InsituDebug.cpp">
