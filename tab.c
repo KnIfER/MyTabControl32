@@ -393,19 +393,7 @@ static BOOL TAB_InternalGetItemRect(
 	/* calculate the times bottom and top based on the row */
 	GetClientRect(infoPtr->hwnd, &clientRect);
 
-	if ((infoPtr->dwStyle & TCS_BOTTOM) && (infoPtr->dwStyle & TCS_VERTICAL))
-	{
-		itemRect->right  = clientRect.right - SELECTED_TAB_OFFSET - itemRect->left * infoPtr->tabHeight -
-			((infoPtr->dwStyle & TCS_BUTTONS) ? itemRect->left * BUTTON_SPACINGX : 0);
-		itemRect->left   = itemRect->right - infoPtr->tabHeight;
-	}
-	else if (infoPtr->dwStyle & TCS_VERTICAL)
-	{
-		itemRect->left   = clientRect.left + SELECTED_TAB_OFFSET + itemRect->left * infoPtr->tabHeight +
-			((infoPtr->dwStyle & TCS_BUTTONS) ? itemRect->left * BUTTON_SPACINGX : 0);
-		itemRect->right  = itemRect->left + infoPtr->tabHeight;
-	}
-	else if (infoPtr->dwStyle & TCS_BOTTOM)
+	if (infoPtr->dwStyle & TCS_BOTTOM)
 	{
 		itemRect->bottom = clientRect.bottom - itemRect->top * infoPtr->tabHeight -
 			((infoPtr->dwStyle & TCS_BUTTONS) ? itemRect->top * BUTTON_SPACINGY : SELECTED_TAB_OFFSET);
@@ -422,21 +410,6 @@ static BOOL TAB_InternalGetItemRect(
 	* "scroll" it to make sure the item at the very left of the
 	* tab control is the leftmost visible tab.
 	*/
-	if(infoPtr->dwStyle & TCS_VERTICAL)
-	{
-		OffsetRect(itemRect,
-			0,
-			-TAB_GetItem(infoPtr, infoPtr->leftmostVisible)->rect.top);
-
-		/*
-		* Move the rectangle so the first item is slightly offset from
-		* the bottom of the tab control.
-		*/
-		OffsetRect(itemRect,
-			0,
-			SELECTED_TAB_OFFSET);
-
-	} else
 	{
 		OffsetRect(itemRect,
 			-TAB_GetItem(infoPtr, infoPtr->leftmostVisible)->rect.left,
@@ -459,23 +432,10 @@ static BOOL TAB_InternalGetItemRect(
 		*selectedRect = *itemRect;
 
 		/* The rectangle of a selected item is a bit wider. */
-		if(infoPtr->dwStyle & TCS_VERTICAL)
-			InflateRect(selectedRect, 0, SELECTED_TAB_OFFSET);
-		else
 			InflateRect(selectedRect, SELECTED_TAB_OFFSET, 0);
 
 		/* If it also a bit higher. */
-		if ((infoPtr->dwStyle & TCS_BOTTOM) && (infoPtr->dwStyle & TCS_VERTICAL))
-		{
-			selectedRect->left   -= 2; /* the border is thicker on the right */
-			selectedRect->right  += SELECTED_TAB_OFFSET;
-		}
-		else if (infoPtr->dwStyle & TCS_VERTICAL)
-		{
-			selectedRect->left   -= SELECTED_TAB_OFFSET;
-			selectedRect->right  += 1;
-		}
-		else if (infoPtr->dwStyle & TCS_BOTTOM)
+		if (infoPtr->dwStyle & TCS_BOTTOM)
 		{
 			selectedRect->bottom += SELECTED_TAB_OFFSET;
 		}
@@ -487,10 +447,7 @@ static BOOL TAB_InternalGetItemRect(
 	}
 
 	/* Check for visibility */
-	if (infoPtr->dwStyle & TCS_VERTICAL)
-		return (itemRect->top < clientRect.bottom) && (itemRect->bottom > clientRect.top);
-	else
-		return (itemRect->left < clientRect.right) && (itemRect->right > clientRect.left);
+	return (itemRect->left < clientRect.right) && (itemRect->right > clientRect.left);
 }
 
 static inline BOOL
@@ -938,12 +895,6 @@ static LRESULT TAB_AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT pr
 
 	if (!prc) return -1;
 
-	if(infoPtr->dwStyle & TCS_VERTICAL)
-	{
-		iRightBottom = &(prc->right);
-		iLeftTop     = &(prc->left);
-	}
-	else
 	{
 		iRightBottom = &(prc->bottom);
 		iLeftTop     = &(prc->top);
@@ -1132,16 +1083,6 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 	* of the control.
 	*/
 	GetClientRect(infoPtr->hwnd, &clientRect);
-
-	/* if TCS_VERTICAL then swap the height and width so this code places the
-	tabs along the top of the rectangle and we can just rotate them after
-	rather than duplicate all of the below code */
-	if(infoPtr->dwStyle & TCS_VERTICAL)
-	{
-		iTemp = clientRect.bottom;
-		clientRect.bottom = clientRect.right;
-		clientRect.right = iTemp;
-	}
 
 	/* Now use hPadding and vPadding */
 	infoPtr->uHItemPadding = infoPtr->uHItemPadding_s;
@@ -1343,14 +1284,7 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 			/* move to the next row, reset our current item left position and */
 			/* the count of items on this row */
 
-			if (infoPtr->dwStyle & TCS_VERTICAL) {
-				/* Vert: Add the remaining tabs in the *last* remainder rows */
-				if (iCount >= ((iRow>=(INT)infoPtr->uNumRows - remTab)?tabPerRow + 1:tabPerRow)) {
-					iRow++;
-					curItemLeftPos = 0;
-					iCount = 0;
-				}
-			} else {
+			 {
 				/* Horz: Add the remaining tabs in the *first* remainder rows */
 				if (iCount >= ((iRow<remTab)?tabPerRow + 1:tabPerRow)) {
 					iRow++;
@@ -1437,24 +1371,6 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 
 				iIndexStart = iIndexEnd;
 			}
-		}
-	}
-
-	/* if TCS_VERTICAL rotate the tabs so they are along the side of the clientRect */
-	if(infoPtr->dwStyle & TCS_VERTICAL)
-	{
-		RECT rcOriginal;
-		for(iIndex = 0; iIndex < infoPtr->uNumItem; iIndex++)
-		{
-			rcItem = &TAB_GetItem(infoPtr, iIndex)->rect;
-
-			rcOriginal = *rcItem;
-
-			/* this is rotating the items by 90 degrees clockwise around the center of the control */
-			rcItem->top = (rcOriginal.left - clientRect.left);
-			rcItem->bottom = rcItem->top + (rcOriginal.right - rcOriginal.left);
-			rcItem->left = rcOriginal.top;
-			rcItem->right = rcOriginal.bottom;
 		}
 	}
 
@@ -1589,12 +1505,6 @@ TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RECT *drawRect
 				drawRect->top    += 4;
 				drawRect->right  -= 4;
 
-				if (infoPtr->dwStyle & TCS_VERTICAL)
-				{
-					if (!(infoPtr->dwStyle & TCS_BOTTOM)) drawRect->right  += 1;
-					drawRect->bottom   -= 4;
-				}
-				else
 				{
 					if (infoPtr->dwStyle & TCS_BOTTOM)
 					{
@@ -1610,27 +1520,7 @@ TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RECT *drawRect
 		}
 		else
 		{
-			if ((infoPtr->dwStyle & TCS_VERTICAL) && (infoPtr->dwStyle & TCS_BOTTOM))
-			{
-				if (iItem != infoPtr->iSelected)
-				{
-					drawRect->left   += 2;
-					InflateRect(drawRect, 0, -2);
-				}
-			}
-			else if (infoPtr->dwStyle & TCS_VERTICAL)
-			{
-				if (iItem == infoPtr->iSelected)
-				{
-					drawRect->right  += 1;
-				}
-				else
-				{
-					drawRect->right  -= 2;
-					InflateRect(drawRect, 0, -2);
-				}
-			}
-			else if (infoPtr->dwStyle & TCS_BOTTOM)
+			if (infoPtr->dwStyle & TCS_BOTTOM)
 			{
 				if (iItem == infoPtr->iSelected)
 				{
@@ -1775,12 +1665,6 @@ TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RECT *drawRect
 
 			ImageList_GetIconSize(infoPtr->himl, &cx, &cy);
 
-			if(infoPtr->dwStyle & TCS_VERTICAL)
-			{
-				center_offset_h = ((drawRect->bottom - drawRect->top) - (cy + infoPtr->uHItemPadding + (rcText.right  - rcText.left))) / 2;
-				center_offset_v = ((drawRect->right - drawRect->left) - cx) / 2;
-			}
-			else
 			{
 				center_offset_h = ((drawRect->right - drawRect->left) - (cx + infoPtr->uHItemPadding + (rcText.right  - rcText.left))) / 2;
 				center_offset_v = ((drawRect->bottom - drawRect->top) - cy) / 2;
@@ -1805,22 +1689,7 @@ TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RECT *drawRect
 				debugstr_w(item->pszText), center_offset_h, center_offset_v,
 				wine_dbgstr_rect(drawRect), (rcText.right-rcText.left));
 
-			if((infoPtr->dwStyle & TCS_VERTICAL) && (infoPtr->dwStyle & TCS_BOTTOM))
-			{
-				rcImage.top = drawRect->top + center_offset_h;
-				/* if tab is TCS_VERTICAL and TCS_BOTTOM, the text is drawn from the */
-				/* right side of the tab, but the image still uses the left as its x position */
-				/* this keeps the image always drawn off of the same side of the tab */
-				rcImage.left = drawRect->right - cx - center_offset_v;
-				drawRect->top += cy + infoPtr->uHItemPadding;
-			}
-			else if(infoPtr->dwStyle & TCS_VERTICAL)
-			{
-				rcImage.top  = drawRect->bottom - cy - center_offset_h;
-				rcImage.left = drawRect->left + center_offset_v;
-				drawRect->bottom -= cy + infoPtr->uHItemPadding;
-			}
-			else /* normal style, whether TCS_BOTTOM or not */
+			/* normal style, whether TCS_BOTTOM or not */
 			{
 				rcImage.left = drawRect->left + center_offset_h;
 				rcImage.top = drawRect->top + center_offset_v;
@@ -1844,21 +1713,8 @@ TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RECT *drawRect
 		if (infoPtr->dwStyle & TCS_FIXEDWIDTH && infoPtr->dwStyle & TCS_FORCELABELLEFT)
 			center_offset_h = infoPtr->uHItemPadding;
 		else
-			if(infoPtr->dwStyle & TCS_VERTICAL)
-				center_offset_h = ((drawRect->bottom - drawRect->top) - (rcText.right - rcText.left)) / 2;
-			else
-				center_offset_h = ((drawRect->right - drawRect->left) - (rcText.right - rcText.left)) / 2;
+			center_offset_h = ((drawRect->right - drawRect->left) - (rcText.right - rcText.left)) / 2;
 
-		if(infoPtr->dwStyle & TCS_VERTICAL)
-		{
-			if(infoPtr->dwStyle & TCS_BOTTOM)
-				drawRect->top+=center_offset_h;
-			else
-				drawRect->bottom-=center_offset_h;
-
-			center_offset_v = ((drawRect->right - drawRect->left) - (rcText.bottom - rcText.top)) / 2;
-		}
-		else
 		{
 			drawRect->left += center_offset_h;
 			center_offset_v = ((drawRect->bottom - drawRect->top) - (rcText.bottom - rcText.top)) / 2;
@@ -1873,50 +1729,9 @@ TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RECT *drawRect
 		if (center_offset_v < 0)
 			center_offset_v = 0;
 
-		if(infoPtr->dwStyle & TCS_VERTICAL)
-			drawRect->left += center_offset_v;
-		else
-			drawRect->top += center_offset_v;
+		drawRect->top += center_offset_v;
 
 		/* Draw the text */
-		if(infoPtr->dwStyle & TCS_VERTICAL) /* if we are vertical rotate the text and each character */
-		{
-			LOGFONTW logfont;
-			HFONT hFont;
-			INT nEscapement = 900;
-			INT nOrientation = 900;
-
-			if(infoPtr->dwStyle & TCS_BOTTOM)
-			{
-				nEscapement = -900;
-				nOrientation = -900;
-			}
-
-			/* to get a font with the escapement and orientation we are looking for, we need to */
-			/* call CreateFontIndirect, which requires us to set the values of the logfont we pass in */
-			if (!GetObjectW(infoPtr->hFont, sizeof(logfont), &logfont))
-				GetObjectW(GetStockObject(DEFAULT_GUI_FONT), sizeof(logfont), &logfont);
-
-			logfont.lfEscapement = nEscapement;
-			logfont.lfOrientation = nOrientation;
-			hFont = CreateFontIndirectW(&logfont);
-			SelectObject(hdc, hFont);
-
-			if (item->pszText)
-			{
-				ExtTextOutW(hdc,
-					(infoPtr->dwStyle & TCS_BOTTOM) ? drawRect->right : drawRect->left,
-					(!(infoPtr->dwStyle & TCS_BOTTOM)) ? drawRect->bottom : drawRect->top,
-					ETO_CLIPPED,
-					drawRect,
-					item->pszText,
-					lstrlenW(item->pszText),
-					0);
-			}
-
-			DeleteObject(hFont);
-		}
-		else
 		{
 			TRACE("for <%s>, c_o_h=%d, c_o_v=%d, draw=(%s), textlen=%d\n",
 				debugstr_w(item->pszText), center_offset_h, center_offset_v,
@@ -2089,96 +1904,7 @@ static void TAB_DrawItem(const TAB_INFO *infoPtr, HDC  hdc, INT  iItem)
 				DrawThemeBackground (theme, hdc, partIds[partIndex], stateId, &r, NULL);
 				GetThemeBackgroundContentRect (theme, hdc, partIds[partIndex], stateId, &r, &r);
 			}
-			else if(infoPtr->dwStyle & TCS_VERTICAL)
-			{
-				/* These are for adjusting the drawing of a Selected tab      */
-				/* The initial values are for the normal case of non-Selected */
-				int ZZ = 1;   /* Do not stretch if selected */
-				if (iItem == infoPtr->iSelected) {
-					ZZ = 0;
-
-					/* if leftmost draw the line longer */
-					if(selectedRect.top == 0)
-						fillRect.top += CONTROL_BORDER_SIZEY;
-					/* if rightmost draw the line longer */
-					if(selectedRect.bottom == clBottom)
-						fillRect.bottom -= CONTROL_BORDER_SIZEY;
-				}
-
-				if (infoPtr->dwStyle & TCS_BOTTOM)
-				{
-					/* Adjust both rectangles to match native */
-					r.left += (1-ZZ);
-
-					TRACE("<right> item=%d, fill=(%s), edge=(%s)\n",
-						iItem, wine_dbgstr_rect(&fillRect), wine_dbgstr_rect(&r));
-
-					/* Clear interior */
-					SetBkColor(hdc, bkgnd);
-					ExtTextOutW(hdc, 0, 0, 2, &fillRect, NULL, 0, 0);
-
-					/* Draw rectangular edge around tab */
-					DrawEdge(hdc, &r, EDGE_RAISED, BF_SOFT|BF_RIGHT|BF_TOP|BF_BOTTOM);
-
-					/* Now erase the top corner and draw diagonal edge */
-					SetBkColor(hdc, corner);
-					r1.left = r.right - ROUND_CORNER_SIZE - 1;
-					r1.top = r.top;
-					r1.right = r.right;
-					r1.bottom = r1.top + ROUND_CORNER_SIZE;
-					ExtTextOutW(hdc, 0, 0, 2, &r1, NULL, 0, 0);
-					r1.right--;
-					DrawEdge(hdc, &r1, EDGE_RAISED, BF_SOFT|BF_DIAGONAL_ENDTOPLEFT);
-
-					/* Now erase the bottom corner and draw diagonal edge */
-					r1.left = r.right - ROUND_CORNER_SIZE - 1;
-					r1.bottom = r.bottom;
-					r1.right = r.right;
-					r1.top = r1.bottom - ROUND_CORNER_SIZE;
-					ExtTextOutW(hdc, 0, 0, 2, &r1, NULL, 0, 0);
-					r1.right--;
-					DrawEdge(hdc, &r1, EDGE_RAISED, BF_SOFT|BF_DIAGONAL_ENDBOTTOMLEFT);
-
-					if ((iItem == infoPtr->iSelected) && (selectedRect.top == 0)) {
-						r1 = r;
-						r1.right = r1.left;
-						r1.left--;
-						DrawEdge(hdc, &r1, EDGE_RAISED, BF_SOFT|BF_TOP);
-					}
-
-				}
-				else
-				{
-					TRACE("<left> item=%d, fill=(%s), edge=(%s)\n",
-						iItem, wine_dbgstr_rect(&fillRect), wine_dbgstr_rect(&r));
-
-					/* Clear interior */
-					SetBkColor(hdc, bkgnd);
-					ExtTextOutW(hdc, 0, 0, 2, &fillRect, NULL, 0, 0);
-
-					/* Draw rectangular edge around tab */
-					DrawEdge(hdc, &r, EDGE_RAISED, BF_SOFT|BF_LEFT|BF_TOP|BF_BOTTOM);
-
-					/* Now erase the top corner and draw diagonal edge */
-					SetBkColor(hdc, corner);
-					r1.left = r.left;
-					r1.top = r.top;
-					r1.right = r1.left + ROUND_CORNER_SIZE + 1;
-					r1.bottom = r1.top + ROUND_CORNER_SIZE;
-					ExtTextOutW(hdc, 0, 0, 2, &r1, NULL, 0, 0);
-					r1.left++;
-					DrawEdge(hdc, &r1, EDGE_RAISED, BF_SOFT|BF_DIAGONAL_ENDTOPRIGHT);
-
-					/* Now erase the bottom corner and draw diagonal edge */
-					r1.left = r.left;
-					r1.bottom = r.bottom;
-					r1.right = r1.left + ROUND_CORNER_SIZE + 1;
-					r1.top = r1.bottom - ROUND_CORNER_SIZE;
-					ExtTextOutW(hdc, 0, 0, 2, &r1, NULL, 0, 0);
-					r1.left++;
-					DrawEdge(hdc, &r1, EDGE_SUNKEN, BF_DIAGONAL_ENDTOPLEFT);
-				}
-			}
+			// vert...
 			else  /* ! TCS_VERTICAL */
 			{
 				/* These are for adjusting the drawing of a Selected tab      */
@@ -2313,10 +2039,6 @@ static void TAB_DrawBorder(const TAB_INFO *infoPtr, HDC hdc)
 	{
 		if ((infoPtr->dwStyle & TCS_BOTTOM) && !(infoPtr->dwStyle & TCS_VERTICAL))
 			rect.bottom -= infoPtr->tabHeight * infoPtr->uNumRows + CONTROL_BORDER_SIZEX;
-		else if((infoPtr->dwStyle & TCS_BOTTOM) && (infoPtr->dwStyle & TCS_VERTICAL))
-			rect.right  -= infoPtr->tabHeight * infoPtr->uNumRows + CONTROL_BORDER_SIZEX;
-		else if(infoPtr->dwStyle & TCS_VERTICAL)
-			rect.left   += infoPtr->tabHeight * infoPtr->uNumRows + CONTROL_BORDER_SIZEX;
 		else /* not TCS_VERTICAL and not TCS_BOTTOM */
 			rect.top    += infoPtr->tabHeight * infoPtr->uNumRows + CONTROL_BORDER_SIZEX;
 	}
@@ -2404,9 +2126,6 @@ static void TAB_EnsureSelectionVisible(
 		INT newselected;
 		INT iTargetRow;
 
-		if(infoPtr->dwStyle & TCS_VERTICAL)
-			newselected = selected->rect.left;
-		else
 			newselected = selected->rect.top;
 
 		/* the target row is always (number of rows - 1)
@@ -2416,23 +2135,6 @@ static void TAB_EnsureSelectionVisible(
 		if (newselected != iTargetRow)
 		{
 			UINT i;
-			if(infoPtr->dwStyle & TCS_VERTICAL)
-			{
-				for (i=0; i < infoPtr->uNumItem; i++)
-				{
-					/* move everything in the row of the selected item to the iTargetRow */
-					TAB_ITEM *item = TAB_GetItem(infoPtr, i);
-
-					if (item->rect.left == newselected )
-						item->rect.left = iTargetRow;
-					else
-					{
-						if (item->rect.left > newselected)
-							item->rect.left-=1;
-					}
-				}
-			}
-			else
 			{
 				for (i=0; i < infoPtr->uNumItem; i++)
 				{
@@ -2524,19 +2226,7 @@ static void TAB_InvalidateTabArea(const TAB_INFO *infoPtr)
 	TAB_AdjustRect(infoPtr, 0, &rAdjClient);
 
 	TAB_InternalGetItemRect(infoPtr, infoPtr->uNumItem-1 , &rect, NULL);
-	if ((infoPtr->dwStyle & TCS_BOTTOM) && (infoPtr->dwStyle & TCS_VERTICAL))
-	{
-		rInvalidate.left = rAdjClient.right;
-		if (infoPtr->uNumRows == 1)
-			rInvalidate.bottom = clientRect.top + rect.bottom + 2 * SELECTED_TAB_OFFSET;
-	}
-	else if(infoPtr->dwStyle & TCS_VERTICAL)
-	{
-		rInvalidate.right = rAdjClient.left;
-		if (infoPtr->uNumRows == 1)
-			rInvalidate.bottom = clientRect.top + rect.bottom + 2 * SELECTED_TAB_OFFSET;
-	}
-	else if (infoPtr->dwStyle & TCS_BOTTOM)
+	if (infoPtr->dwStyle & TCS_BOTTOM)
 	{
 		rInvalidate.top = rAdjClient.bottom;
 		if (infoPtr->uNumRows == 1)
