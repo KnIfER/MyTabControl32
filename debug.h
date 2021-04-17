@@ -62,7 +62,7 @@ void print(const CHAR* msg, va_list args) {
     CHAR buffer[256];
     vsprintf_s(buffer,255, msg, args);
     OutputDebugStringA(buffer);
-    OutputDebugStringA("\n");
+    //OutputDebugStringA("\n");
 }
 
 int TRACE(const CHAR* msg, ...) {

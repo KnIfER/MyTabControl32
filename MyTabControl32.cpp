@@ -55,7 +55,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 	TAB_Register();
 
 
-	int style = WS_CHILD | WS_VISIBLE ;
+	int style = WS_CHILD | WS_VISIBLE 
+		| TCS_MULTILINE
+		//| TCS_BUTTONS
+		| TCS_FOCUSNEVER
+		;
 
 	_hWnd = ::CreateWindowEx(
 		0,
@@ -71,6 +75,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 	addTabItem(L"happy");
 	addTabItem(L"sadsdsfdsfsdfsdfsdfdss");
 
+	for (size_t i = 0; i < 80; i++)
+	{
+		addTabItem(L"happy");
+	}
 
 	SendMessage(_hParent, WM_SIZE, 0, 0);
 

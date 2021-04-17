@@ -240,7 +240,7 @@ static inline LRESULT _GetCurFocus (const TAB_INFO *infoPtr)
 
 static inline LRESULT _GetToolTips (const TAB_INFO *infoPtr)
 {
-	TRACE("(%p)\n", infoPtr);
+	TRACE("_GetToolTips::(%p)\n", infoPtr);
 	return (LRESULT)infoPtr->hwndToolTip;
 }
 
@@ -248,7 +248,7 @@ static inline LRESULT _SetCurSel (TAB_INFO *infoPtr, INT iItem)
 {
 	INT prevItem = infoPtr->iSelected;
 
-	TRACE("(%p %d)\n", infoPtr, iItem);
+	TRACE("_SetCurSel::(%p %d)\n", infoPtr, iItem);
 
 	if (iItem >= (INT)infoPtr->uNumItem)
 		return -1;
@@ -606,7 +606,7 @@ static LRESULT _LButtonDown (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 
 	newItem = TAB_InternalHitTest (infoPtr, pt, &dummy);
 
-	TRACE("On Tab, item %d\n", newItem);
+	TRACE("On Tab, item %d!=%d\n", newItem, infoPtr->iSelected);
 
 	if ((newItem != -1) && (infoPtr->iSelected != newItem))
 	{
@@ -623,24 +623,11 @@ static LRESULT _LButtonDown (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 		else
 		{
 			INT i;
-			BOOL pressed = FALSE;
-
-			/* any button pressed ? */
-			for (i = 0; i < infoPtr->uNumItem; i++)
-				if ((TAB_GetItem (infoPtr, i)->dwState & TCIS_BUTTONPRESSED) &&
-					(infoPtr->iSelected != i))
-				{
-					pressed = TRUE;
-					break;
-				}
 
 			if (TAB_SendSimpleNotify(infoPtr, TCN_SELCHANGING))
 				return 0;
 
-			if (pressed)
-				_DeselectAll (infoPtr, FALSE);
-			else
-				_SetCurSel(infoPtr, newItem);
+			_SetCurSel(infoPtr, newItem);
 
 			TAB_SendSimpleNotify(infoPtr, TCN_SELCHANGE);
 		}
@@ -2098,7 +2085,8 @@ static void TAB_EnsureSelectionVisible(TAB_INFO* infoPtr)
 		return;
 
 	/* set the items row to the bottommost row or topmost row depending on
-	* style */
+	* style */ 
+	if(false)
 	if ((infoPtr->uNumRows > 1) && !(infoPtr->dwStyle & TCS_BUTTONS))
 	{
 		TAB_ITEM *selected = TAB_GetItem(infoPtr, iSelected);
@@ -2966,8 +2954,7 @@ static LRESULT WINAPI TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 	case WM_LBUTTONUP: return _LButtonUp (infoPtr);
 	case WM_NOTIFY:
 		return SendMessageW(infoPtr->hwndNotify, WM_NOTIFY, wParam, lParam);
-	case WM_RBUTTONUP: 
-		_RButtonUp (infoPtr);
+	case WM_RBUTTONUP:        _RButtonUp (infoPtr);
 		return DefWindowProcW (hwnd, uMsg, wParam, lParam);
 	case WM_MOUSEMOVE: return _MouseMove (infoPtr, wParam, lParam);
 	case WM_PRINTCLIENT:
