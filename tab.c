@@ -56,19 +56,23 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "windows.h"
+#include "strsafe.h"
 #include "windef.h"
 #include "winbase.h"
 #include "wingdi.h"
 #include "winuser.h"
 #include "winnls.h"
 #include "commctrl.h"
+#include "./commctrl.h"
 #include "comctl32.h"
 #include "uxtheme.h"
 #include "vssym32.h"
-#include "wine/debug.h"
+#include "dpa_dsa.h"
+#include "debug.h"
 #include <math.h>
 
-WINE_DEFAULT_DEBUG_CHANNEL(tab);
+//WINE_DEFAULT_DEBUG_CHANNEL(tab);
 
 typedef struct
 {
@@ -2613,10 +2617,10 @@ TAB_InsertItemT (TAB_INFO *infoPtr, INT iItem, const TCITEMW *pti, BOOL bUnicode
   item->pszText = NULL;
   if (pti->mask & TCIF_TEXT)
   {
-    if (bUnicode)
-      Str_SetPtrW (&item->pszText, pti->pszText);
-    else
-      Str_SetPtrAtoW (&item->pszText, (LPSTR)pti->pszText);
+      if (bUnicode)
+          Str_SetPtrW (&item->pszText, pti->pszText);
+      else 
+          { } //fixme
   }
 
   if (pti->mask & TCIF_IMAGE)
@@ -2753,9 +2757,9 @@ TAB_SetItemT (TAB_INFO *infoPtr, INT iItem, LPTCITEMW tabItem, BOOL bUnicode)
     Free(wineItem->pszText);
     wineItem->pszText = NULL;
     if (bUnicode)
-      Str_SetPtrW(&wineItem->pszText, tabItem->pszText);
+        Str_SetPtrW(&wineItem->pszText, tabItem->pszText);
     else
-      Str_SetPtrAtoW(&wineItem->pszText, (LPSTR)tabItem->pszText);
+        {}//fixme
   }
 
   /* Update and repaint tabs */
@@ -2807,9 +2811,9 @@ TAB_GetItemT (TAB_INFO *infoPtr, INT iItem, LPTCITEMW tabItem, BOOL bUnicode)
   if (tabItem->mask & TCIF_TEXT)
   {
     if (bUnicode)
-      Str_GetPtrW (wineItem->pszText, tabItem->pszText, tabItem->cchTextMax);
+        StringCchCopy(tabItem->pszText, tabItem->cchTextMax, wineItem->pszText);
     else
-      Str_GetPtrWtoA (wineItem->pszText, (LPSTR)tabItem->pszText, tabItem->cchTextMax);
+        {}//fixme
   }
 
   TAB_DumpItemExternalT(tabItem, iItem, bUnicode);
@@ -3401,7 +3405,7 @@ TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
       return TAB_StyleChanged(infoPtr, wParam, (LPSTYLESTRUCT)lParam);
 
     case WM_SYSCOLORCHANGE:
-      COMCTL32_RefreshSysColors();
+      //COMCTL32_RefreshSysColors(); //fixme
       return 0;
 
     case WM_THEMECHANGED:
@@ -3432,8 +3436,9 @@ TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 
 
-void
-TAB_Register (void)
+#define WC_TABCONTROLM          L"MyTabControl32"
+
+void TAB_Register(void)
 {
   WNDCLASSW wndClass;
 
@@ -3444,14 +3449,13 @@ TAB_Register (void)
   wndClass.cbWndExtra    = sizeof(TAB_INFO *);
   wndClass.hCursor       = LoadCursorW (0, (LPWSTR)IDC_ARROW);
   wndClass.hbrBackground = (HBRUSH)(COLOR_BTNFACE+1);
-  wndClass.lpszClassName = WC_TABCONTROLW;
+  wndClass.lpszClassName = WC_TABCONTROLM;
 
   RegisterClassW (&wndClass);
 }
 
 
-void
-TAB_Unregister (void)
+void TAB_Unregister (void)
 {
-    UnregisterClassW (WC_TABCONTROLW, NULL);
+    UnregisterClassW (WC_TABCONTROLM, NULL);
 }

@@ -61,7 +61,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 
 	_hWnd = ::CreateWindowEx(
 		0,
-		L"SysTabControl32",
+		L"MyTabControl32",
 		TEXT("Tab"),
 		style,
 		0, 0, 800, 100,

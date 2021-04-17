@@ -93,6 +93,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="comctl32.h" />
+    <ClInclude Include="debug.h" />
     <ClInclude Include="InsituDebug.h" />
     <ClInclude Include="WindowBase.h" />
   </ItemGroup>
