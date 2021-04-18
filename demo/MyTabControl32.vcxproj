@@ -10,6 +10,26 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\InsituDebug.cpp" />
+    <ClCompile Include="..\tab.cpp" />
+    <ClCompile Include="src\MyTabControl32.cpp" />
+    <ClCompile Include="src\WndControl\Frame.cpp" />
+    <ClCompile Include="src\WndControl\TabLayout.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\comctl32.h" />
+    <ClInclude Include="..\debug.h" />
+    <ClInclude Include="..\InsituDebug.h" />
+    <ClInclude Include="src\MyTabControl32.h" />
+    <ClInclude Include="src\resource.h" />
+    <ClInclude Include="src\WndControl\Frame.h" />
+    <ClInclude Include="src\WndControl\TabLayout.h" />
+    <ClInclude Include="src\WndControl\WindowBase.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\demo.rc" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -56,6 +76,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;__x86_64__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>../;./;./src;./src/WndControl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -72,7 +93,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;__x86_64__;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>../</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../;./;./src;./src/WndControl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -84,19 +105,6 @@
       <AdditionalDependencies>UxTheme.lib;Comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="MyTabControl32.cpp" />
-    <ClCompile Include="InsituDebug.cpp" />
-    <ClCompile Include="tab.cpp">
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="comctl32.h" />
-    <ClInclude Include="debug.h" />
-    <ClInclude Include="InsituDebug.h" />
-    <ClInclude Include="WindowBase.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

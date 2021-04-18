@@ -58,33 +58,12 @@ BOOL COMCTL32_IsReflectedMessage(UINT uMsg)
 #define debugstr_w  
 #define debugstr_a  
 
-void print(const CHAR* msg, va_list args) {
-    CHAR buffer[256];
-    vsprintf_s(buffer,255, msg, args);
-    OutputDebugStringA(buffer);
-    //OutputDebugStringA("\n");
-}
+void nothing(const CHAR* msg, ...){}
 
-int TRACE(const CHAR* msg, ...) {
-    va_list args = NULL;
-    va_start(args, msg);
-    print(msg, args);
-    return 0;
-};
-int FIXME(const CHAR* msg) {
-    va_list args = NULL;
-    va_start(args, msg);
-    print(msg, args);
-    OutputDebugStringA("todoing\n");
-    return 0;
-};
-int WARN(const CHAR* msg, ...) {
-    va_list args = NULL;
-    va_start(args, msg);
-    print(msg, args);
-    OutputDebugStringA("warning\n");
-    return 0;
-};
+#define TRACE nothing
+
+#define FIXME TRACE
+#define WARN TRACE
 
 int Free(void* ptr) {
   //  free(ptr);

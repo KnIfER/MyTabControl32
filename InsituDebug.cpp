@@ -55,7 +55,7 @@ void LogIs(const TCHAR* msg, ...)
 {
 	va_list args = NULL;
 	va_start(args, msg);
-	LogIs(1, (HWND)-1, msg, args);
+	LogIs(3, (HWND)-1, msg, args);
 }
 
 #if UNICODE
@@ -112,6 +112,6 @@ void LogIs(const CHAR* msg, ...)
 {
 	va_list args = NULL;
 	va_start(args, msg);
-	LogIs(1, (HWND)-1, msg, args);
+	LogIs(3, (HWND)-1, msg, args);
 }
 #endif

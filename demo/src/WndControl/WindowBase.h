@@ -1,5 +1,6 @@
 #pragma once
 #include "windows.h"
+#include "comctl32.h"
 
 class WindowBase 
 {
@@ -10,7 +11,7 @@ public:
 	HWND getHParent(){
 		return _hParent;
 	};
-private:
+protected:
 	HWND _hWnd;
 	HWND _hParent;
 };
