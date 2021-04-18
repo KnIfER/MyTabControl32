@@ -1769,6 +1769,7 @@ static void TAB_DrawItem(const TAB_INFO *infoPtr, HDC  hdc, INT  iItem)
 		* fill colors are used for filling the tabs, and the
 		* corners when drawing the edge.
 		*/
+		comctl32_color.clrBtnFace = RGB(255, 255, 255);
 		bkgnd = comctl32_color.clrBtnFace;
 		corner = comctl32_color.clrBtnFace;
 
