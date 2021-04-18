@@ -2,6 +2,7 @@
 #include "Frame.h"
 #include "TabLayout.h"
 #include "MyTabControl32.h"
+#include <iostream>
 
 struct DemoData
 {
@@ -23,6 +24,8 @@ DemoData demoData[]{
 	,{L"happy", 0}
 	,{L"happy", 0}
 	,{L"Your photo.png", 5}
+	,{L"happy", 0}
+	,{L"happy", 0}
 };
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow)
@@ -39,9 +42,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 			->addTab(dd.title, dd.image);
 	}
 
+	TCHAR buffer[64];
 	for (size_t i = 0; i < 80; i++)
 	{
-		app->tabLayout->addTab(L"happy", 0);
+		swprintf_s(buffer, L"happy#%d", i);
+		app->tabLayout->addTab(buffer, 0);
 	}
 
 	SendMessage(app->getHWND(), WM_SIZE, 0, 0);

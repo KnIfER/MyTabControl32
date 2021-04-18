@@ -1107,6 +1107,8 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 			icon_width += infoPtr->uHItemPadding;
 	}
 
+	int allTabsWidth=0;
+
 	for (curItem = 0; curItem < infoPtr->uNumItem; curItem++)
 	{
 		TAB_ITEM *curr = TAB_GetItem(infoPtr, curItem);
@@ -1169,8 +1171,11 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 
 			curr->rect.left = 0;
 			curItemRowCount++;
+			// 第一轮分割
 			TRACE("wrapping <%s>, rect %s\n", debugstr_w(curr->pszText), wine_dbgstr_rect(&curr->rect));
 		}
+
+		allTabsWidth += curr->rect.right-curr->rect.left;
 
 		curr->rect.bottom = 0;
 		curr->rect.top = curItemRowCount - 1;
@@ -1222,7 +1227,7 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		(infoPtr->uNumItem > 0) &&
 		(infoPtr->uNumRows > 1))
 	{
-		INT tabPerRow,remTab,iRow;
+		INT tabPerRow,thisRowWidth,remTab,iRow, avgRowWidth;
 		UINT iItm;
 		INT iCount=0;
 
@@ -1233,8 +1238,9 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 
 		tabPerRow = infoPtr->uNumItem / (infoPtr->uNumRows);
 		remTab = infoPtr->uNumItem % (infoPtr->uNumRows);
+		avgRowWidth = infoPtr->uNumRows==0?0:allTabsWidth/infoPtr->uNumRows;
 
-		for (iItm=0,iRow=0,iCount=0,curItemLeftPos=0;
+		for (iItm=0,iRow=0,iCount=0,curItemLeftPos=0,thisRowWidth=0;
 			iItm<infoPtr->uNumItem;
 			iItm++,iCount++)
 		{
@@ -1255,10 +1261,16 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 
 			 {
 				/* Horz: Add the remaining tabs in the *first* remainder rows */
-				if (iCount >= ((iRow<remTab)?tabPerRow + 1:tabPerRow)) {
+				thisRowWidth += curr->rect.right;
+				if (avgRowWidth && thisRowWidth >= avgRowWidth 
+					|| iCount >= ((iRow<remTab)?tabPerRow + 1:tabPerRow)
+						//&& !avgRowWidth
+					) 
+				{
 					iRow++;
 					curItemLeftPos = 0;
 					iCount = 0;
+					thisRowWidth = curr->rect.right;
 				}
 			}
 
@@ -1277,6 +1289,7 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 
 			TRACE("arranging <%s>, rect %s\n", debugstr_w(curr->pszText), wine_dbgstr_rect(&curr->rect));
 		}
+		infoPtr->uNumRows = iRow+1;
 
 		/*
 		* Justify the rows
