@@ -139,4 +139,8 @@ typedef struct
 static COMCTL32_SysColor  comctl32_color;
 static HBRUSH  COMCTL32_hPattern55AABrush;
 
+#define TCM_SETMAXROWS        (TCM_FIRST + 66)
+#define TabCtrl_SetMaxRows(hwnd, maxLn) \
+    (HIMAGELIST)SNDMSG((hwnd), TCM_SETMAXROWS, maxLn, 0)
+
 #endif  /* __WINE_COMCTL32_H */

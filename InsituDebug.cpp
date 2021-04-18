@@ -32,7 +32,7 @@ void LogIs(int show, HWND hWnd, const TCHAR* msg, va_list & args)
 		else if (show==3)
 		{
 			::OutputDebugString(buffer);
-			::OutputDebugStringA("\n");
+			//::OutputDebugStringA("\n");
 		}
 	}
 }
@@ -89,7 +89,7 @@ void LogIs(int show, HWND hWnd, const CHAR* msg, va_list & args)
 		else if (show==3)
 		{
 			::OutputDebugStringA(buffer);
-			::OutputDebugStringA("\n");
+			//::OutputDebugStringA("\n");
 		}
 	}
 }

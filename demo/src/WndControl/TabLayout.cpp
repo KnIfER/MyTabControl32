@@ -61,6 +61,8 @@ TabLayout::TabLayout(HINSTANCE hInstance, HWND hParent)
 
 	TabCtrl_SetImageList(_hWnd, hImageList);
 
+	TabCtrl_SetMaxRows(_hWnd, 3);
+
 }
 
 void TabLayout::showWindow()

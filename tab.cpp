@@ -128,6 +128,12 @@ typedef struct
 	DWORD      dwStyle;         /* the cached window GWL_STYLE */
 
 	HDPA       items;           /* dynamic array of TAB_ITEM* pointers */
+
+	INT        tabMaxRows;
+	BOOL multilineScrolling;
+	INT        topmostVisible; /* Used for scrolling, this member contains  the index of the first visible row */
+	INT        maxRange; /* Used for scrolling */
+
 } TAB_INFO;
 
 /******************************************************************************
@@ -366,7 +372,7 @@ static BOOL TAB_InternalGetItemRect(
 		(!(((infoPtr->dwStyle & TCS_MULTILINE) || (infoPtr->dwStyle & TCS_VERTICAL))) &&
 			(itemIndex < infoPtr->leftmostVisible)))
 	{
-		TRACE("Not Visible\n");
+		//TRACE("Not Visible\n");
 		SetRect(itemRect, 0, 0, 0, infoPtr->tabHeight);
 		SetRectEmpty(selectedRect);
 		return FALSE;
@@ -382,6 +388,16 @@ static BOOL TAB_InternalGetItemRect(
 	/* Retrieve the unmodified item rect. */
 	*itemRect = TAB_GetItem(infoPtr,itemIndex)->rect;
 
+	if (infoPtr->multilineScrolling 
+		&& (itemRect->top < infoPtr->topmostVisible
+			|| itemRect->top >= infoPtr->topmostVisible+infoPtr->tabMaxRows)
+		)
+	{
+		//TRACE("Not Visible 111\n");
+		SetRect(itemRect, 0, 0, 0, infoPtr->tabHeight);
+		SetRectEmpty(selectedRect);
+		return FALSE;
+	}
 	/* calculate the times bottom and top based on the row */
 	GetClientRect(infoPtr->hwnd, &clientRect);
 
@@ -402,6 +418,19 @@ static BOOL TAB_InternalGetItemRect(
 	* "scroll" it to make sure the item at the very left of the
 	* tab control is the leftmost visible tab.
 	*/
+	if(infoPtr->dwStyle & TCS_MULTILINE)
+	{
+		OffsetRect(itemRect,
+			0,
+			-infoPtr->topmostVisible * infoPtr->tabHeight);
+
+		/*
+		* Move the rectangle so the first item is slightly offset from
+		* the bottom of the tab control.
+		*/
+		OffsetRect(itemRect, 0, SELECTED_TAB_OFFSET);
+	} 
+	else
 	{
 		OffsetRect(itemRect,
 			-TAB_GetItem(infoPtr, infoPtr->leftmostVisible)->rect.left,
@@ -411,12 +440,9 @@ static BOOL TAB_InternalGetItemRect(
 		* Move the rectangle so the first item is slightly offset from
 		* the left of the tab control.
 		*/
-		OffsetRect(itemRect,
-			SELECTED_TAB_OFFSET,
-			0);
+		OffsetRect(itemRect, SELECTED_TAB_OFFSET, 0);
 	}
-	TRACE("item %d tab h=%d, rect=(%s)\n",
-		itemIndex, infoPtr->tabHeight, wine_dbgstr_rect(itemRect));
+	TRACE("item %d tab h=%d, rect=(%s)\n",itemIndex,infoPtr->tabHeight,wine_dbgstr_rect(itemRect));
 
 	/* Now, calculate the position of the item as if it were selected. */
 	if (selectedRect!=NULL)
@@ -859,8 +885,7 @@ static LRESULT _AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT prc)
 {
 	LONG *iRightBottom, *iLeftTop;
 
-	TRACE ("hwnd=%p fLarger=%ld (%s)\n", infoPtr->hwnd, fLarger,
-		wine_dbgstr_rect(prc));
+	//TRACE ("hwnd=%p fLarger=%ld (%s)\n", infoPtr->hwnd, fLarger, wine_dbgstr_rect(prc));
 
 	if (!prc) return -1;
 
@@ -869,14 +894,21 @@ static LRESULT _AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT prc)
 		iLeftTop     = &(prc->top);
 	}
 
+	int rows = infoPtr->uNumRows;
+
+	if (infoPtr->tabMaxRows>0 && infoPtr->tabMaxRows<rows)
+	{
+		rows = infoPtr->tabMaxRows;
+	}
+
 	if (fLarger) /* Go from display rectangle */
 	{
 		/* Add the height of the tabs. */
 		if (infoPtr->dwStyle & TCS_BOTTOM)
-			*iRightBottom += infoPtr->tabHeight * infoPtr->uNumRows;
+			*iRightBottom += infoPtr->tabHeight * rows;
 		else
-			*iLeftTop -= infoPtr->tabHeight * infoPtr->uNumRows +
-			((infoPtr->dwStyle & TCS_BUTTONS)? 3 * (infoPtr->uNumRows - 1) : 0);
+			*iLeftTop -= infoPtr->tabHeight * rows +
+			((infoPtr->dwStyle & TCS_BUTTONS)? 3 * (rows - 1) : 0);
 
 		/* Inflate the rectangle for the padding */
 		InflateRect(prc, DISPLAY_AREA_PADDINGX, DISPLAY_AREA_PADDINGY); 
@@ -894,10 +926,10 @@ static LRESULT _AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT prc)
 
 		/* Remove the height of the tabs. */
 		if (infoPtr->dwStyle & TCS_BOTTOM)
-			*iRightBottom -= infoPtr->tabHeight * infoPtr->uNumRows;
+			*iRightBottom -= infoPtr->tabHeight * rows;
 		else
-			*iLeftTop += (infoPtr->tabHeight) * infoPtr->uNumRows +
-			((infoPtr->dwStyle & TCS_BUTTONS)? 3 * (infoPtr->uNumRows - 1) : 0);
+			*iLeftTop += (infoPtr->tabHeight) * rows +
+			((infoPtr->dwStyle & TCS_BUTTONS)? 3 * (rows - 1) : 0);
 	}
 
 	return 0;
@@ -911,17 +943,51 @@ static LRESULT _AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT prc)
 */
 static LRESULT _OnHScroll(TAB_INFO *infoPtr, int nScrollCode, int nPos)
 {
-	if(nScrollCode == SB_THUMBPOSITION && nPos != infoPtr->leftmostVisible)
+	if(nScrollCode == SB_THUMBPOSITION 
+		&& nPos != infoPtr->leftmostVisible && (infoPtr->dwStyle&TCS_MULTILINE)==0)
 	{
 		if(nPos < infoPtr->leftmostVisible)
 			infoPtr->leftmostVisible--;
 		else
 			infoPtr->leftmostVisible++;
-
+	
 		TAB_RecalcHotTrack(infoPtr, NULL, NULL, NULL);
 		TAB_InvalidateTabArea(infoPtr);
 		SendMessageW(infoPtr->hwndUpDown, UDM_SETPOS, 0,
 			MAKELONG(infoPtr->leftmostVisible, 0));
+	}
+
+	return 0;
+}
+
+static LRESULT _OnVScroll(TAB_INFO *infoPtr, int nScrollCode, int nPos)
+{
+	//TRACE("TAB_OnVScroll:: %d -> %d curr=%d \n", nPos, nPos, infoPtr->topmostVisible);
+	
+	//if(1) return 0;
+	//nPos = infoPtr->maxRange-nPos;
+
+	if(nScrollCode == SB_THUMBPOSITION 
+		&& nPos != infoPtr->topmostVisible && (infoPtr->dwStyle&TCS_MULTILINE))
+	{
+
+		if(nPos < infoPtr->topmostVisible)
+		{
+			infoPtr->topmostVisible--;
+		}
+		else
+		{
+			infoPtr->topmostVisible++;
+		}
+
+		if(infoPtr->topmostVisible<0)
+			infoPtr->topmostVisible = 0;
+		else if(infoPtr->topmostVisible > infoPtr->uNumRows - infoPtr->tabMaxRows)
+			infoPtr->topmostVisible = infoPtr->uNumRows - infoPtr->tabMaxRows;
+
+		TAB_RecalcHotTrack(infoPtr, NULL, NULL, NULL);
+		TAB_InvalidateTabArea(infoPtr);
+		SendMessageW(infoPtr->hwndUpDown, UDM_SETPOS, 0, MAKELONG(infoPtr->topmostVisible, 0));
 	}
 
 	return 0;
@@ -933,42 +999,51 @@ static LRESULT _OnHScroll(TAB_INFO *infoPtr, int nScrollCode, int nPos)
 * This method will check the current scrolling state and make sure the
 * scrolling control is displayed (or not).
 */
-static void TAB_SetupScrolling(
-	TAB_INFO*   infoPtr,
-	const RECT* clientRect)
+static void TAB_SetupScrolling(TAB_INFO*   infoPtr, const RECT* clientRect)
 {
 	INT maxRange = 0;
 
-	if (infoPtr->needsScrolling)
+	if (infoPtr->needsScrolling || infoPtr->multilineScrolling)
 	{
 		RECT controlPos;
 		INT vsize, tabwidth;
-
+		INT dimX=2, dimY=1;
+		if (infoPtr->multilineScrolling)
+		{
+			dimX=1;
+			dimY=2;
+		}
 		/*
 		* Calculate the position of the scroll control.
 		*/
 		controlPos.right = clientRect->right;
-		controlPos.left  = controlPos.right - 2 * GetSystemMetrics(SM_CXHSCROLL);
+		controlPos.left  = controlPos.right - dimX * GetSystemMetrics(SM_CXHSCROLL);
 
 		if (infoPtr->dwStyle & TCS_BOTTOM)
 		{
-			controlPos.top    = clientRect->bottom - infoPtr->tabHeight;
-			controlPos.bottom = controlPos.top + GetSystemMetrics(SM_CYHSCROLL);
+			controlPos.top    = clientRect->bottom - infoPtr->tabHeight * (infoPtr->multilineScrolling?infoPtr->tabMaxRows:1);
+			controlPos.bottom = controlPos.top + dimY * GetSystemMetrics(SM_CYHSCROLL);
 		}
 		else
 		{
-			controlPos.bottom = clientRect->top + infoPtr->tabHeight;
-			controlPos.top    = controlPos.bottom - GetSystemMetrics(SM_CYHSCROLL);
+			controlPos.bottom = clientRect->top + infoPtr->tabHeight * (infoPtr->multilineScrolling?infoPtr->tabMaxRows:1);
+			controlPos.top    = controlPos.bottom - dimY * GetSystemMetrics(SM_CYHSCROLL);
 		}
 
 		/*
 		* If we don't have a scroll control yet, we want to create one.
 		* If we have one, we want to make sure it's positioned properly.
 		*/
+		if (infoPtr->hwndUpDown 
+			&& (GetWindowLongPtr(infoPtr->hwndUpDown, GWL_STYLE)&UDS_HORZ) ^ infoPtr->multilineScrolling)
+		{
+			DestroyWindow(infoPtr->hwndUpDown);
+			infoPtr->hwndUpDown = 0;
+		}
 		if (infoPtr->hwndUpDown==0)
 		{
 			infoPtr->hwndUpDown = CreateWindowW(UPDOWN_CLASSW, L"",
-				WS_VISIBLE | WS_CHILD | UDS_HORZ,
+				WS_VISIBLE | WS_CHILD | (infoPtr->multilineScrolling?0:UDS_HORZ),
 				controlPos.left, controlPos.top,
 				controlPos.right - controlPos.left,
 				controlPos.bottom - controlPos.top,
@@ -988,7 +1063,11 @@ static void TAB_SetupScrolling(
 		* We do this by calculating how many tabs will be offscreen when the
 		* last tab is visible.
 		*/
-		if(infoPtr->uNumItem)
+		if (infoPtr->multilineScrolling)
+		{
+			maxRange = infoPtr->uNumRows - infoPtr->tabMaxRows;
+		}
+		else if(infoPtr->uNumItem)
 		{
 			vsize = clientRect->right - (controlPos.right - controlPos.left + 1);
 			maxRange = infoPtr->uNumItem;
@@ -1003,6 +1082,7 @@ static void TAB_SetupScrolling(
 			if(maxRange == infoPtr->uNumItem)
 				maxRange--;
 		}
+		//infoPtr->maxRange = maxRange;
 	}
 	else
 	{
@@ -1011,7 +1091,16 @@ static void TAB_SetupScrolling(
 			ShowWindow(infoPtr->hwndUpDown, SW_HIDE);
 	}
 	if (infoPtr->hwndUpDown)
-		SendMessageW(infoPtr->hwndUpDown, UDM_SETRANGE32, 0, maxRange);
+	{
+		if (infoPtr->multilineScrolling)
+		{
+			SendMessageW(infoPtr->hwndUpDown, UDM_SETRANGE32, maxRange, 0);
+		}
+		else
+		{
+			SendMessageW(infoPtr->hwndUpDown, UDM_SETRANGE32, 0, maxRange);
+		}
+	}
 }
 
 /******************************************************************************
@@ -1207,6 +1296,7 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		/* Don't need scrolling, then update infoPtr->leftmostVisible */
 		if(!infoPtr->needsScrolling)
 			infoPtr->leftmostVisible = 0;
+		infoPtr->multilineScrolling = FALSE;
 	}
 	else
 	{
@@ -1216,12 +1306,11 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		infoPtr->needsScrolling = FALSE;
 		infoPtr->leftmostVisible = 0;
 	}
-	TAB_SetupScrolling(infoPtr, &clientRect);
 
 	/* Set the number of rows */
 	infoPtr->uNumRows = curItemRowCount;
 
-	/* Arrange all tabs evenly if style says so */
+	// 第二轮分割. Arrange all tabs evenly if style says so
 	if (!(infoPtr->dwStyle & TCS_RAGGEDRIGHT) &&
 		((infoPtr->dwStyle & TCS_MULTILINE) || (infoPtr->dwStyle & TCS_VERTICAL)) &&
 		(infoPtr->uNumItem > 0) &&
@@ -1355,6 +1444,25 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 			}
 		}
 	}
+
+	if (infoPtr->dwStyle & TCS_MULTILINE)
+	{
+		infoPtr->multilineScrolling 
+			= infoPtr->tabMaxRows>0 && infoPtr->uNumRows > infoPtr->tabMaxRows;
+		if (infoPtr->multilineScrolling)
+		{
+			if(infoPtr->topmostVisible<0)
+				infoPtr->topmostVisible = 0;
+			else if(infoPtr->topmostVisible > infoPtr->uNumRows - infoPtr->tabMaxRows)
+				infoPtr->topmostVisible = infoPtr->uNumRows - infoPtr->tabMaxRows;
+		}
+		else 
+		{
+			infoPtr->topmostVisible = 0;
+		}
+	}
+
+	TAB_SetupScrolling(infoPtr, &clientRect);
 
 	TAB_EnsureSelectionVisible(infoPtr);
 	TAB_RecalcHotTrack(infoPtr, NULL, NULL, NULL);
@@ -2018,10 +2126,17 @@ static void TAB_DrawBorder(const TAB_INFO *infoPtr, HDC hdc)
 
 	if (infoPtr->uNumItem)
 	{
+		int rows = infoPtr->uNumRows;
+
+		if (infoPtr->tabMaxRows>0 && infoPtr->tabMaxRows<rows)
+		{
+			rows = infoPtr->tabMaxRows;
+		}
+
 		if ((infoPtr->dwStyle & TCS_BOTTOM) && !(infoPtr->dwStyle & TCS_VERTICAL))
-			rect.bottom -= infoPtr->tabHeight * infoPtr->uNumRows + CONTROL_BORDER_SIZEX;
+			rect.bottom -= infoPtr->tabHeight * rows + CONTROL_BORDER_SIZEX;
 		else /* not TCS_VERTICAL and not TCS_BOTTOM */
-			rect.top    += infoPtr->tabHeight * infoPtr->uNumRows + CONTROL_BORDER_SIZEX;
+			rect.top    += infoPtr->tabHeight * rows + CONTROL_BORDER_SIZEX;
 	}
 
 	TRACE("border=(%s)\n", wine_dbgstr_rect(&rect));
@@ -2181,8 +2296,8 @@ static void TAB_EnsureSelectionVisible(TAB_INFO* infoPtr)
 	if (infoPtr->leftmostVisible != iOrigLeftmostVisible)
 		TAB_RecalcHotTrack(infoPtr, NULL, NULL, NULL);
 
-	SendMessageW(infoPtr->hwndUpDown, UDM_SETPOS, 0,
-		MAKELONG(infoPtr->leftmostVisible, 0));
+	SendMessageW(infoPtr->hwndUpDown, UDM_SETPOS, 0
+		, MAKELONG(infoPtr->topmostVisible, 0));
 }
 
 /******************************************************************************
@@ -2692,6 +2807,8 @@ static LRESULT _Create (HWND hwnd, LPARAM lParam)
 	infoPtr->needsScrolling  = FALSE;
 	infoPtr->hwndUpDown      = 0;
 	infoPtr->leftmostVisible = 0;
+	infoPtr->topmostVisible = 0;
+	infoPtr->multilineScrolling = FALSE;
 	infoPtr->fHeightSet      = FALSE;
 	infoPtr->bUnicode        = IsWindowUnicode (hwnd);
 	infoPtr->cbInfo          = sizeof(LPARAM);
@@ -2756,6 +2873,7 @@ static LRESULT _Create (HWND hwnd, LPARAM lParam)
 		infoPtr->tabWidth = GetDeviceCaps(hdc, LOGPIXELSX);
 
 	infoPtr->tabMinWidth = -1;
+	infoPtr->tabMaxRows = -1;
 
 	TRACE("tabH=%d, tabW=%d\n", infoPtr->tabHeight, infoPtr->tabWidth);
 
@@ -2886,6 +3004,13 @@ static inline LRESULT _GetExtendedStyle (const TAB_INFO *infoPtr)
 	return infoPtr->exStyle;
 }
 
+static LRESULT _SetMaxRows (TAB_INFO *infoPtr, DWORD maxRows)
+{
+	 infoPtr->tabMaxRows = maxRows;
+	 // todo change
+	 return 0;
+}
+
 static LRESULT _DeselectAll (TAB_INFO *infoPtr, BOOL excludesel)
 {
 	BOOL paint = FALSE;
@@ -2989,6 +3114,8 @@ static LRESULT WINAPI TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 	case TCM_DESELECTALL: return _DeselectAll (infoPtr, (BOOL)wParam);
 	case TCM_GETEXTENDEDSTYLE: return _GetExtendedStyle (infoPtr);
 	case TCM_SETEXTENDEDSTYLE: return _SetExtendedStyle (infoPtr, wParam, lParam);
+	case TCM_SETMAXROWS: return _SetMaxRows (infoPtr, (INT)wParam);
+
 	case WM_GETFONT: return _GetFont (infoPtr);
 	case WM_SETFONT: return _SetFont (infoPtr, (HFONT)wParam);
 	case WM_CREATE: return _Create (hwnd, lParam);
@@ -3008,10 +3135,12 @@ static LRESULT WINAPI TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 	case WM_SETREDRAW: return _SetRedraw (infoPtr, (BOOL)wParam);
 
 	case WM_HSCROLL: return _OnHScroll(infoPtr, (int)LOWORD(wParam), (int)HIWORD(wParam));
+	case WM_VSCROLL: return _OnVScroll(infoPtr, (int)LOWORD(wParam), (int)HIWORD(wParam));
+	
 	case WM_STYLECHANGED: return _StyleChanged(infoPtr, wParam, (LPSTYLESTRUCT)lParam);
-
 	case WM_SYSCOLORCHANGE: /* COMCTL32_RefreshSysColors(); //fixme */ return 0;
 	case WM_THEMECHANGED: return theme_changed (infoPtr);
+	
 	case WM_KILLFOCUS: _KillFocus(infoPtr);
 	case WM_SETFOCUS:  _FocusChanging(infoPtr); break;   /* Don't disturb normal focus behavior */
 	case WM_KEYDOWN: return _KeyDown(infoPtr, wParam, lParam);

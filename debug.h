@@ -60,6 +60,7 @@ BOOL COMCTL32_IsReflectedMessage(UINT uMsg)
 
 void nothing(const CHAR* msg, ...){}
 
+#define TRACE LogIs
 #define TRACE nothing
 
 #define FIXME TRACE
