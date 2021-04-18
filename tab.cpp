@@ -2219,8 +2219,15 @@ static void TAB_InvalidateTabArea(const TAB_INFO *infoPtr)
 
 	TRACE("invalidate (%s)\n", wine_dbgstr_rect(&rInvalidate));
 
-	InvalidateRect(infoPtr->hwnd, &rInvalidate, TRUE);
+	InvalidateRect(infoPtr->hwnd, &rInvalidate, FALSE);
 }
+
+HDC         hdcMem;
+HBITMAP     hbmMem;
+HANDLE      hOld;
+PAINTSTRUCT ps;
+HDC         _hdc;
+int win_width, win_height;
 
 static inline LRESULT _Paint (TAB_INFO *infoPtr, HDC hdcPaint)
 {
@@ -2235,7 +2242,30 @@ static inline LRESULT _Paint (TAB_INFO *infoPtr, HDC hdcPaint)
 		TRACE("erase %d, rect=(%s)\n", ps.fErase, wine_dbgstr_rect(&ps.rcPaint));
 	}
 
+	if (infoPtr->dwStyle&TCS_FLICKERFREE)
+	{
+		RECT rect;
+		GetClientRect(infoPtr->hwnd, &rect);
+		win_width=rect.right;
+		win_height=rect.bottom;
+		// Create an off-screen DC for double-buffering
+		hdcMem = CreateCompatibleDC(hdc);
+		hbmMem = CreateCompatibleBitmap(hdc, win_width, win_height);
+		hOld = SelectObject(hdcMem, hbmMem);
+		_hdc = hdc;
+		hdc = hdcMem;
+	}
+
 	TAB_Refresh (infoPtr, hdc);
+
+	if (hdcMem)
+	{	
+		BitBlt(_hdc, 0, 0, win_width, win_height, hdcMem, 0, 0, SRCCOPY);
+		SelectObject(hdcMem, hOld);
+		DeleteObject(hbmMem);
+		DeleteDC (hdcMem);
+		hdcMem = NULL;
+	}
 
 	if (!hdcPaint)
 		EndPaint (infoPtr->hwnd, &ps);
@@ -2960,6 +2990,7 @@ static LRESULT WINAPI TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 	case WM_MOUSEMOVE: return _MouseMove (infoPtr, wParam, lParam);
 	case WM_PRINTCLIENT:
 	case WM_PAINT: return _Paint (infoPtr, (HDC)wParam);
+	case WM_ERASEBKGND: return 1;
 	case WM_SIZE: return _Size (infoPtr);
 	case WM_SETREDRAW: return _SetRedraw (infoPtr, (BOOL)wParam);
 

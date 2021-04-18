@@ -113,6 +113,7 @@
 
 #define WM_SYSTIMER     0x0118
 
+#define TCS_FLICKERFREE          0x10000
 
 typedef struct
 {
