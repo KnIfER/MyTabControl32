@@ -10,7 +10,7 @@ Flickering and confusing
 
 |  File   | Description  | Licence  |
 |  ----  | ----  | ----  |
-| tab.cpp  | the tab control implementation from [WINE](https://github.com/wine-mirror/wine/blob/72186db5fe5ac509d5404b73a5c6590d6fbbca00/dlls/comctl32/tests/tab.c) | LGPL
+| tab.cpp  | the tab control implementation from [WINE](https://github.com/wine-mirror/wine/blob/72186db5fe5ac509d5404b73a5c6590d6fbbca00/dlls/comctl32/tab.c) | LGPL
 | demo\res\\*  | svg and bmp icons from [Fluent-UI](https://github.com/microsoft/fluentui-system-icons/blob/master/icons.md) |  MIT 
 | demo\src\\*  | Demo application |  Appache 2.0  
 
