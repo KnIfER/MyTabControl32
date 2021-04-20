@@ -72,6 +72,8 @@
 #include "debug.h"
 #include <math.h>
 
+#include <vector>
+
 //WINE_DEFAULT_DEBUG_CHANNEL(tab);
 
 typedef struct
@@ -134,6 +136,7 @@ typedef struct
 	INT        topmostVisible; /* Used for scrolling, this member contains  the index of the first visible row */
 	INT        maxRange; /* Used for scrolling */
 
+	HTHEME htheme; /* https://stackoverflow.com/questions/55319559/why-is-my-window-losing-its-htmeme-when-i-call-setwindowlongptrgwl-style-on-it */
 } TAB_INFO;
 
 /******************************************************************************
@@ -209,10 +212,10 @@ static void TAB_RelayEvent (HWND hwndTip, HWND hwndMsg, UINT uMsg, WPARAM wParam
 static void TAB_DumpItemExternalT(const TCITEMW *pti, UINT iItem, BOOL isW)
 {
 	if (TRACE_ON(tab)) {
-		TRACE("external tab %d, mask=0x%08x, dwState=0x%08x, dwStateMask=0x%08x, cchTextMax=0x%08x\n",
-			iItem, pti->mask, pti->dwState, pti->dwStateMask, pti->cchTextMax);
-		TRACE("external tab %d,   iImage=%d, lParam=0x%08lx, pszTextW=%s\n",
-			iItem, pti->iImage, pti->lParam, isW ? debugstr_w(pti->pszText) : (LPWSTR)debugstr_a((LPSTR)pti->pszText));
+		//TRACE("external tab %d, mask=0x%08x, dwState=0x%08x, dwStateMask=0x%08x, cchTextMax=0x%08x\n",
+		//	iItem, pti->mask, pti->dwState, pti->dwStateMask, pti->cchTextMax);
+		//TRACE("external tab %d,   iImage=%d, lParam=0x%08lx, pszTextW=%s\n",
+		//	iItem, pti->iImage, pti->lParam, isW ? debugstr_w(pti->pszText) : (LPWSTR)debugstr_a((LPSTR)pti->pszText));
 	}
 }
 
@@ -428,7 +431,7 @@ static BOOL TAB_InternalGetItemRect(
 		* Move the rectangle so the first item is slightly offset from
 		* the bottom of the tab control.
 		*/
-		OffsetRect(itemRect, 0, SELECTED_TAB_OFFSET);
+		//OffsetRect(itemRect, 0, SELECTED_TAB_OFFSET);
 	} 
 	else
 	{
@@ -704,7 +707,7 @@ static inline void hottrack_refresh(const TAB_INFO *infoPtr, int tabIndex)
 {
 	if (tabIndex == -1) return;
 
-	if (GetWindowTheme (infoPtr->hwnd))
+	if (infoPtr->htheme)
 	{
 		RECT rect;
 		TAB_InternalGetItemRect(infoPtr, tabIndex, &rect, NULL);
@@ -792,7 +795,7 @@ static void TAB_RecalcHotTrack
 	if (out_redrawEnter != NULL)
 		*out_redrawEnter = -1;
 
-	if ((infoPtr->dwStyle & TCS_HOTTRACK) || GetWindowTheme(infoPtr->hwnd))
+	if ((infoPtr->dwStyle & TCS_HOTTRACK) || infoPtr->htheme)
 	{
 		POINT pt;
 		UINT  flags;
@@ -950,7 +953,7 @@ static LRESULT _OnHScroll(TAB_INFO *infoPtr, int nScrollCode, int nPos)
 			infoPtr->leftmostVisible--;
 		else
 			infoPtr->leftmostVisible++;
-	
+
 		TAB_RecalcHotTrack(infoPtr, NULL, NULL, NULL);
 		TAB_InvalidateTabArea(infoPtr);
 		SendMessageW(infoPtr->hwndUpDown, UDM_SETPOS, 0,
@@ -1142,6 +1145,8 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 	*/
 	GetClientRect(infoPtr->hwnd, &clientRect);
 
+	int win_width = clientRect.right - clientRect.left;
+
 	/* Now use hPadding and vPadding */
 	infoPtr->uHItemPadding = infoPtr->uHItemPadding_s;
 	infoPtr->uVItemPadding = infoPtr->uVItemPadding_s;
@@ -1198,9 +1203,13 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 
 	int allTabsWidth=0;
 
-	for (curItem = 0; curItem < infoPtr->uNumItem; curItem++)
+	std::vector<LONG> rowWidSepMap;
+
+	TAB_ITEM *curr;
+	curItem = 0;
+	for (; curItem < infoPtr->uNumItem; curItem++)
 	{
-		TAB_ITEM *curr = TAB_GetItem(infoPtr, curItem);
+		curr = TAB_GetItem(infoPtr, curItem);
 
 		/* Set the leftmost position of the tab. */
 		curr->rect.left = curItemLeftPos;
@@ -1258,6 +1267,18 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		{
 			curr->rect.right -= curr->rect.left;
 
+			rowWidSepMap.push_back(MAKELONG(curr->rect.left, curItem));
+
+			//LogIs(3, "rowsWidSepMap, %d/%d row.%d :: %d,%d == %d,%d"
+			//	, curItem,infoPtr->uNumItem
+			//	, curItemRowCount-1
+			//
+			//	, curr->rect.left
+			//	, curItem
+			//
+			//	, (int)LOWORD(rowWidSepMap[curItemRowCount-1])
+			//	, (int)HIWORD(rowWidSepMap[curItemRowCount-1]));
+
 			curr->rect.left = 0;
 			curItemRowCount++;
 			// 第一轮分割
@@ -1283,6 +1304,12 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		}
 		else
 			curItemLeftPos = curr->rect.right;
+
+
+		if (curItem==infoPtr->uNumItem-1)
+		{
+			rowWidSepMap.push_back(MAKELONG(curr->rect.right, curItem+1));
+		}
 	}
 
 	if (!((infoPtr->dwStyle & TCS_MULTILINE) || (infoPtr->dwStyle & TCS_VERTICAL)))
@@ -1316,92 +1343,116 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		(infoPtr->uNumItem > 0) &&
 		(infoPtr->uNumRows > 1))
 	{
-		INT tabPerRow,thisRowWidth,remTab,iRow, avgRowWidth;
-		UINT iItm;
-		INT iCount=0;
-
-		/*
-		* Ok windows tries to even out the rows. place the same
-		* number of tabs in each row. So lets give that a shot
-		*/
-
-		tabPerRow = infoPtr->uNumItem / (infoPtr->uNumRows);
-		remTab = infoPtr->uNumItem % (infoPtr->uNumRows);
-		avgRowWidth = infoPtr->uNumRows==0?0:allTabsWidth/infoPtr->uNumRows;
-
-		for (iItm=0,iRow=0,iCount=0,curItemLeftPos=0,thisRowWidth=0;
-			iItm<infoPtr->uNumItem;
-			iItm++,iCount++)
+		UINT iRow,thisRowSep;
+		if(rowWidSepMap.size()>1)
 		{
-			/* normalize the current rect */
-			TAB_ITEM *curr = TAB_GetItem(infoPtr, iItm);
+			UINT thisRowWidth,iItm
+				,thisRow,upperRow,nextRowSep,upperRowWidth
+				,thisBorrowCount,itemToBorrowWid;
 
-			/* shift the item to the left side of the clientRect */
-			curr->rect.right -= curr->rect.left;
-			curr->rect.left = 0;
+			UINT avgTabItemWid = infoPtr->uNumItem && infoPtr->uNumRows
+				?win_width/(infoPtr->uNumItem/infoPtr->uNumRows):0;
+			TAB_ITEM *curr;
+			//Even out rows
+			int maxBorrowSz = infoPtr->uNumRows;
 
-			TRACE("r=%d, cl=%d, cl.r=%d, iCount=%d, iRow=%d, uNumRows=%d, remTab=%d, tabPerRow=%d\n",
-				curr->rect.right, curItemLeftPos, clientRect.right,
-				iCount, iRow, infoPtr->uNumRows, remTab, tabPerRow);
+			for (thisRow = infoPtr->uNumRows-1; thisRow > 0; thisRow--)
+			{
+				upperRow = thisRow-1;
+				thisRowWidth=LOWORD(rowWidSepMap[thisRow]);
+				nextRowSep=HIWORD(rowWidSepMap[thisRow]);
+				upperRowWidth=LOWORD(rowWidSepMap[upperRow]);
+				thisRowSep = HIWORD(rowWidSepMap[upperRow]);
+				//LogIs(3, "rowsWidSepMap.size() %d", rowWidSepMap.size());
+				//LogIs(3, "thisRowSep&Wid, row.%d    %d,%d"
+				//	, thisRow
+				//	, HIWORD(rowWidSepMap[thisRow])), LOWORD(rowWidSepMap[thisRow]);
+				//LogIs(3, "upperRowSep&Wid, row.%d   %d,%d"
+				//	, upperRow
+				//	, HIWORD(rowWidSepMap[upperRow])), LOWORD(rowWidSepMap[upperRow]);
+				//LogIs(3, "avgTabItemWid==, %d" , avgTabItemWid);
+				for (thisBorrowCount = 0
+					; thisBorrowCount < maxBorrowSz && thisRowSep>0
+					; thisBorrowCount++)
+				{
+					curr = TAB_GetItem(infoPtr, thisRowSep-1);
+					itemToBorrowWid = curr->rect.right - curr->rect.left;
+					if (thisRowWidth+itemToBorrowWid<upperRowWidth-itemToBorrowWid+0)// avgTabItemWid
+					{
+						upperRowWidth-=itemToBorrowWid;
+						thisRowWidth+=itemToBorrowWid;
+						--thisRowSep;
+					}
+					else
+					{
+						break;
+					}
+				}
+				rowWidSepMap[thisRow]=MAKELONG(thisRowWidth, nextRowSep);
+				rowWidSepMap[upperRow]=MAKELONG(upperRowWidth, thisRowSep);
 
-			/* if we have reached the maximum number of tabs on this row */
-			/* move to the next row, reset our current item left position and */
-			/* the count of items on this row */
+				maxBorrowSz--;
+			}
 
-			 {
-				/* Horz: Add the remaining tabs in the *first* remainder rows */
-				thisRowWidth += curr->rect.right;
-				if (avgRowWidth && thisRowWidth >= avgRowWidth 
-					|| iCount >= ((iRow<remTab)?tabPerRow + 1:tabPerRow)
-						//&& !avgRowWidth
-					) 
+			// Apply modified layout.
+			thisRowSep=HIWORD(rowWidSepMap[0]);
+			thisRowWidth=LOWORD(rowWidSepMap[0]);
+			for (iItm=0,iRow=0,curItemLeftPos=0;
+				iItm<infoPtr->uNumItem;
+				iItm++)
+			{
+				curr = TAB_GetItem(infoPtr, iItm);
+				curr->rect.right -= curr->rect.left;
+				curr->rect.left = 0;
+				if (iItm >= thisRowSep) 
 				{
 					iRow++;
 					curItemLeftPos = 0;
-					iCount = 0;
-					thisRowWidth = curr->rect.right;
+					thisRowSep = HIWORD(rowWidSepMap[iRow]);
+					thisRowWidth = LOWORD(rowWidSepMap[iRow]);
 				}
+				//curr->rect.right = curr->rect.right*1.0f/thisRowWidth*win_width;
+				curr->rect.left += curItemLeftPos;
+				curr->rect.right += curItemLeftPos;
+				curr->rect.top = iRow;
+				if (infoPtr->dwStyle & TCS_BUTTONS)
+				{
+					curItemLeftPos = curr->rect.right + 1;
+					if (infoPtr->dwStyle & TCS_FLATBUTTONS)
+						curItemLeftPos += FLAT_BTN_SPACINGX;
+				}
+				else
+					curItemLeftPos = curr->rect.right;
 			}
 
-			/* shift the item to the right to place it as the next item in this row */
-			curr->rect.left += curItemLeftPos;
-			curr->rect.right += curItemLeftPos;
-			curr->rect.top = iRow;
-			if (infoPtr->dwStyle & TCS_BUTTONS)
-			{
-				curItemLeftPos = curr->rect.right + 1;
-				if (infoPtr->dwStyle & TCS_FLATBUTTONS)
-					curItemLeftPos += FLAT_BTN_SPACINGX;
-			}
-			else
-				curItemLeftPos = curr->rect.right;
-
-			TRACE("arranging <%s>, rect %s\n", debugstr_w(curr->pszText), wine_dbgstr_rect(&curr->rect));
 		}
-		infoPtr->uNumRows = iRow+1;
 
 		/*
 		* Justify the rows
 		*/
+		//if (false)
 		{
+			// todo merge this pass to the above loop 
 			INT widthDiff, iIndexStart=0, iIndexEnd=0;
 			INT remainder;
 			INT iCount=0;
-
+			iRow=0;
+			thisRowSep=HIWORD(rowWidSepMap[0]);
 			while(iIndexStart < infoPtr->uNumItem)
 			{
 				TAB_ITEM *start = TAB_GetItem(infoPtr, iIndexStart);
+
+				if (iIndexStart >= thisRowSep) 
+				{
+					iRow++;
+					thisRowSep = HIWORD(rowWidSepMap[iRow]);
+				}
 
 				/*
 				* find the index of the row
 				*/
 				/* find the first item on the next row */
-				for (iIndexEnd=iIndexStart;
-					(iIndexEnd < infoPtr->uNumItem) &&
-					(TAB_GetItem(infoPtr, iIndexEnd)->rect.top ==
-						start->rect.top) ;
-					iIndexEnd++)
-					/* intentionally blank */;
+				iIndexEnd = iRow+1<infoPtr->uNumRows?HIWORD(rowWidSepMap[iRow]):infoPtr->uNumItem;
 
 				/*
 				* we need to justify these tabs so they fill the whole given
@@ -1521,12 +1572,12 @@ static void TAB_EraseTabInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, co
 	else /* !TCS_BUTTONS */
 	{
 		InflateRect(&rTemp, -2, -2);
-		if (!GetWindowTheme (infoPtr->hwnd))
+		if (!infoPtr->htheme)
 			FillRect(hdc, &rTemp, hbr);
 	}
 
 	/* highlighting is drawn on top of previous fills */
-	if (TAB_GetItem(infoPtr, iItem)->dwState & TCIS_HIGHLIGHTED)
+	if (false && TAB_GetItem(infoPtr, iItem)->dwState & TCIS_HIGHLIGHTED)
 	{
 		if (deleteBrush)
 		{
@@ -1666,7 +1717,7 @@ static void TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RE
 	* Setup for text output
 	*/
 	oldBkMode = SetBkMode(hdc, TRANSPARENT);
-	if (!GetWindowTheme (infoPtr->hwnd) || (infoPtr->dwStyle & TCS_BUTTONS))
+	if (!infoPtr->htheme || (infoPtr->dwStyle & TCS_BUTTONS))
 	{
 		if ((infoPtr->dwStyle & TCS_HOTTRACK) && (iItem == infoPtr->iHotTracked) &&
 			!(infoPtr->dwStyle & TCS_FLATBUTTONS))
@@ -1890,7 +1941,6 @@ static void TAB_DrawItem(const TAB_INFO *infoPtr, HDC  hdc, INT  iItem)
 		* fill colors are used for filling the tabs, and the
 		* corners when drawing the edge.
 		*/
-		comctl32_color.clrBtnFace = RGB(255, 255, 255);
 		bkgnd = comctl32_color.clrBtnFace;
 		corner = comctl32_color.clrBtnFace;
 
@@ -1950,8 +2000,12 @@ static void TAB_DrawItem(const TAB_INFO *infoPtr, HDC  hdc, INT  iItem)
 			* Windows draws even side or bottom tabs themed, with wacky results.
 			* However, since in Wine apps may get themed that did not opt in via
 			* a manifest avoid theming when we know the result will be wrong */
-			if ((theme = GetWindowTheme (infoPtr->hwnd)) 
-				&& ((infoPtr->dwStyle & (TCS_VERTICAL | TCS_BOTTOM)) == 0))
+
+			//LogIs(2, "GetWindowTheme (infoPtr->hwnd) %d %d", infoPtr->hwnd, ::GetWindowTheme(infoPtr->hwnd));
+
+			if ((theme = infoPtr->htheme ) 
+				&& ((infoPtr->dwStyle & (TCS_VERTICAL | TCS_BOTTOM)) == 0)
+				)
 			{
 				static const int partIds[8] = {
 					/* Normal item */
@@ -2116,7 +2170,7 @@ static void TAB_DrawItem(const TAB_INFO *infoPtr, HDC  hdc, INT  iItem)
 static void TAB_DrawBorder(const TAB_INFO *infoPtr, HDC hdc)
 {
 	RECT rect;
-	HTHEME theme = GetWindowTheme (infoPtr->hwnd);
+	HTHEME theme = infoPtr->htheme;
 
 	GetClientRect (infoPtr->hwnd, &rect);
 
@@ -2159,6 +2213,15 @@ static void TAB_Refresh (const TAB_INFO *infoPtr, HDC hdc)
 
 	if (!infoPtr->DoRedraw)
 		return;
+
+	// clear the background manually
+	if (infoPtr->dwStyle&TCS_FLICKERFREE)
+	{
+		RECT clientRect;
+		GetClientRect(infoPtr->hwnd, &clientRect);
+		clientRect.bottom = clientRect.top + infoPtr->tabHeight*infoPtr->uNumRows + 8;
+		FillRect(hdc, &clientRect, GetSysColorBrush(COLOR_BTNFACE));
+	}
 
 	hOldFont = (HFONT)SelectObject (hdc, infoPtr->hFont);
 
@@ -2214,7 +2277,7 @@ static void TAB_EnsureSelectionVisible(TAB_INFO* infoPtr)
 		return;
 
 	/* set the items row to the bottommost row or topmost row depending on
-	* style */ 
+	* style */ // 不需要
 	if(false)
 	if ((infoPtr->uNumRows > 1) && !(infoPtr->dwStyle & TCS_BUTTONS))
 	{
@@ -2347,7 +2410,7 @@ static void TAB_InvalidateTabArea(const TAB_INFO *infoPtr)
 
 	TRACE("invalidate (%s)\n", wine_dbgstr_rect(&rInvalidate));
 
-	InvalidateRect(infoPtr->hwnd, &rInvalidate, FALSE);
+	InvalidateRect(infoPtr->hwnd, &rInvalidate, infoPtr->dwStyle&TCS_FLICKERFREE==0);
 }
 
 HDC         hdcMem;
@@ -2875,6 +2938,8 @@ static LRESULT _Create (HWND hwnd, LPARAM lParam)
 	infoPtr->tabMinWidth = -1;
 	infoPtr->tabMaxRows = -1;
 
+	infoPtr->htheme = ::GetWindowTheme(infoPtr->hwnd);
+
 	TRACE("tabH=%d, tabW=%d\n", infoPtr->tabHeight, infoPtr->tabWidth);
 
 	SelectObject (hdc, hOldFont);
@@ -2911,7 +2976,7 @@ static LRESULT _Destroy (TAB_INFO *infoPtr)
 	if (infoPtr->iHotTracked >= 0)
 		KillTimer(infoPtr->hwnd, TAB_HOTTRACK_TIMER);
 
-	CloseThemeData (GetWindowTheme (infoPtr->hwnd));
+	CloseThemeData (infoPtr->htheme);
 
 	Free (infoPtr);
 	return 0;
@@ -2920,7 +2985,7 @@ static LRESULT _Destroy (TAB_INFO *infoPtr)
 /* update theme after a WM_THEMECHANGED message */
 static LRESULT theme_changed(const TAB_INFO *infoPtr)
 {
-	HTHEME theme = GetWindowTheme (infoPtr->hwnd);
+	HTHEME theme = infoPtr->htheme;
 	CloseThemeData (theme);
 	OpenThemeData (infoPtr->hwnd, themeClass);
 	return 0;
@@ -3006,9 +3071,9 @@ static inline LRESULT _GetExtendedStyle (const TAB_INFO *infoPtr)
 
 static LRESULT _SetMaxRows (TAB_INFO *infoPtr, DWORD maxRows)
 {
-	 infoPtr->tabMaxRows = maxRows;
-	 // todo change
-	 return 0;
+	infoPtr->tabMaxRows = maxRows;
+	// todo change
+	return 0;
 }
 
 static LRESULT _DeselectAll (TAB_INFO *infoPtr, BOOL excludesel)
@@ -3130,17 +3195,21 @@ static LRESULT WINAPI TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 	case WM_MOUSEMOVE: return _MouseMove (infoPtr, wParam, lParam);
 	case WM_PRINTCLIENT:
 	case WM_PAINT: return _Paint (infoPtr, (HDC)wParam);
-	case WM_ERASEBKGND: return 1;
+	case WM_ERASEBKGND: 
+		if(infoPtr->dwStyle&TCS_FLICKERFREE) 
+			return 1;
+		else
+			break;
 	case WM_SIZE: return _Size (infoPtr);
 	case WM_SETREDRAW: return _SetRedraw (infoPtr, (BOOL)wParam);
 
 	case WM_HSCROLL: return _OnHScroll(infoPtr, (int)LOWORD(wParam), (int)HIWORD(wParam));
 	case WM_VSCROLL: return _OnVScroll(infoPtr, (int)LOWORD(wParam), (int)HIWORD(wParam));
-	
+
 	case WM_STYLECHANGED: return _StyleChanged(infoPtr, wParam, (LPSTYLESTRUCT)lParam);
 	case WM_SYSCOLORCHANGE: /* COMCTL32_RefreshSysColors(); //fixme */ return 0;
 	case WM_THEMECHANGED: return theme_changed (infoPtr);
-	
+
 	case WM_KILLFOCUS: _KillFocus(infoPtr);
 	case WM_SETFOCUS:  _FocusChanging(infoPtr); break;   /* Don't disturb normal focus behavior */
 	case WM_KEYDOWN: return _KeyDown(infoPtr, wParam, lParam);
