@@ -136,11 +136,12 @@ typedef struct
     COLORREF clrInfoText;           /* COLOR_INFOTEXT                      */
 } COMCTL32_SysColor;
 
-static COMCTL32_SysColor  comctl32_color;
-static HBRUSH  COMCTL32_hPattern55AABrush;
+__declspec(selectany) COMCTL32_SysColor  comctl32_color;
+__declspec(selectany) HBRUSH  COMCTL32_hPattern55AABrush;
 
 #define TCM_SETMAXROWS        (TCM_FIRST + 66)
 #define TabCtrl_SetMaxRows(hwnd, maxLn) \
     (HIMAGELIST)SNDMSG((hwnd), TCM_SETMAXROWS, maxLn, 0)
 
+void ReadColors();
 #endif  /* __WINE_COMCTL32_H */

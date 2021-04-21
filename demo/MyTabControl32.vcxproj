@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\comctl32.cpp" />
     <ClCompile Include="..\InsituDebug.cpp" />
     <ClCompile Include="..\tab.cpp" />
     <ClCompile Include="src\MyTabControl32.cpp" />

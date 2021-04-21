@@ -61,7 +61,9 @@ TabLayout::TabLayout(HINSTANCE hInstance, HWND hParent)
 
 	TabCtrl_SetImageList(_hWnd, hImageList);
 
-	TabCtrl_SetMaxRows(_hWnd, 3);
+	//TabCtrl_SetMaxRows(_hWnd, 3);
+
+	//TabCtrl_SetPadding(_hWnd, 12, 0);
 
 }
 

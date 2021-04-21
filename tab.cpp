@@ -453,7 +453,7 @@ static BOOL TAB_InternalGetItemRect(
 		*selectedRect = *itemRect;
 
 		/* The rectangle of a selected item is a bit wider. */
-			InflateRect(selectedRect, SELECTED_TAB_OFFSET, 0);
+		InflateRect(selectedRect, SELECTED_TAB_OFFSET, 0);
 
 		/* If it also a bit higher. */
 		if (infoPtr->dwStyle & TCS_BOTTOM)
@@ -966,7 +966,7 @@ static LRESULT _OnHScroll(TAB_INFO *infoPtr, int nScrollCode, int nPos)
 static LRESULT _OnVScroll(TAB_INFO *infoPtr, int nScrollCode, int nPos)
 {
 	//TRACE("TAB_OnVScroll:: %d -> %d curr=%d \n", nPos, nPos, infoPtr->topmostVisible);
-	
+
 	//if(1) return 0;
 	//nPos = infoPtr->maxRange-nPos;
 
@@ -1171,7 +1171,7 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		if (fontMetrics.tmHeight > icon_height)
 			item_height = fontMetrics.tmHeight + 2;
 		else
-			item_height = icon_height;
+			item_height = icon_height + 2; // enlarge 2 px in height
 
 		/*
 		* Make sure there is enough space for the letters + icon + growing the
@@ -1797,6 +1797,7 @@ static void TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RE
 		*
 		* Draw the icon.
 		*/
+		bool selected = iItem == infoPtr->iSelected;
 		if (infoPtr->himl && item->iImage != -1)
 		{
 			INT cx;
@@ -1831,7 +1832,14 @@ static void TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RE
 			/* normal style, whether TCS_BOTTOM or not */
 			{
 				rcImage.left = drawRect->left + center_offset_h;
-				rcImage.top = drawRect->top + center_offset_v;
+				if (selected) // selected
+				{
+					rcImage.top = drawRect->top + center_offset_v + 0;
+				} 
+				else 
+				{
+					rcImage.top = drawRect->top + center_offset_v + 1;
+				}
 				drawRect->left += cx + infoPtr->uHItemPadding;
 			}
 
@@ -1860,7 +1868,7 @@ static void TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RE
 		}
 
 		/* if an item is selected, the text is shifted up instead of down */
-		if (iItem == infoPtr->iSelected)
+		if (selected)
 			center_offset_v -= infoPtr->uVItemPadding / 2;
 		else
 			center_offset_v += infoPtr->uVItemPadding / 2;
@@ -1868,7 +1876,19 @@ static void TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RE
 		if (center_offset_v < 0)
 			center_offset_v = 0;
 
-		drawRect->top += center_offset_v;
+		//drawRect->top += center_offset_v;
+
+		//if(false)
+		if (selected)
+		{
+			drawRect->top +=    center_offset_v;
+			drawRect->bottom += center_offset_v;
+		} 
+		else 
+		{
+			drawRect->top +=    1;
+			drawRect->bottom += 1;
+		}
 
 		/* Draw the text */
 		{
@@ -1884,6 +1904,7 @@ static void TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RE
 					lstrlenW(item->pszText),
 					drawRect,
 					DT_LEFT | DT_SINGLELINE
+					| (selected?0:DT_VCENTER)
 				);
 			}
 		}
@@ -2003,7 +2024,9 @@ static void TAB_DrawItem(const TAB_INFO *infoPtr, HDC  hdc, INT  iItem)
 
 			//LogIs(2, "GetWindowTheme (infoPtr->hwnd) %d %d", infoPtr->hwnd, ::GetWindowTheme(infoPtr->hwnd));
 
-			if ((theme = infoPtr->htheme ) 
+			// todo separate the draw theme branch
+			if (((infoPtr->dwStyle & TCS_OWNERDRAWFIXED)==0) && 
+				(theme = infoPtr->htheme ) 
 				&& ((infoPtr->dwStyle & (TCS_VERTICAL | TCS_BOTTOM)) == 0)
 				)
 			{
@@ -2278,14 +2301,13 @@ static void TAB_EnsureSelectionVisible(TAB_INFO* infoPtr)
 
 	/* set the items row to the bottommost row or topmost row depending on
 	* style */ // 不需要
-	if(false)
-	if ((infoPtr->uNumRows > 1) && !(infoPtr->dwStyle & TCS_BUTTONS))
+	if (false && (infoPtr->uNumRows > 1) && !(infoPtr->dwStyle & TCS_BUTTONS))
 	{
 		TAB_ITEM *selected = TAB_GetItem(infoPtr, iSelected);
 		INT newselected;
 		INT iTargetRow;
 
-			newselected = selected->rect.top;
+		newselected = selected->rect.top;
 
 		/* the target row is always (number of rows - 1)
 		as row 0 is furthest from the clientRect */
@@ -2846,6 +2868,8 @@ static LRESULT _Create (HWND hwnd, LPARAM lParam)
 	HDC hdc;
 	HFONT hOldFont;
 	DWORD style;
+
+	ReadColors();
 
 	infoPtr = (TAB_INFO*)Alloc (sizeof(TAB_INFO));
 

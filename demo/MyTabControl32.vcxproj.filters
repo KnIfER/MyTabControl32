@@ -36,6 +36,9 @@
     <ClCompile Include="..\tab.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\comctl32.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\MyTabControl32.h">
