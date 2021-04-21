@@ -5,6 +5,7 @@
 * Copyright 1999 Thuy Nguyen
 * Copyright 1999 Eric Kohl
 * Copyright 2002 Dimitrie O. Paun
+* Copyright 2021 KnIfER JK. Chen
 *
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU Lesser General Public
@@ -115,6 +116,8 @@
 
 #define TCS_FLICKERFREE          0x10000
 
+#define TCN_SIZECHANGE         (TCN_FIRST - 6)
+
 typedef struct
 {
     COLORREF clrBtnHighlight;       /* COLOR_BTNHIGHLIGHT                  */
@@ -142,6 +145,27 @@ __declspec(selectany) HBRUSH  COMCTL32_hPattern55AABrush;
 #define TCM_SETMAXROWS        (TCM_FIRST + 66)
 #define TabCtrl_SetMaxRows(hwnd, maxLn) \
     (HIMAGELIST)SNDMSG((hwnd), TCM_SETMAXROWS, maxLn, 0)
+
+#define TCM_GETISVERTICALRESIZEAREA    (TCM_FIRST + 67)
+#define TabCtrl_GetIsVerticalResizeArea(hwnd, x, y)\
+        (bool)SNDMSG((hwnd), TCM_GETISVERTICALRESIZEAREA, x, y)
+
+#define TCM_TRACKVERTICALTABS    (TCM_FIRST + 68)
+#define TabCtrl_TrackVerticalTabs(hwnd, x, y)\
+        (int)SNDMSG((hwnd), TCM_STRATTRACKING, x, y)
+
+#define TCM_DISMISSTOOLTIPS    (TCM_FIRST + 69)
+#define TabCtrl_DismissToolTips(hwnd)\
+        (int)SNDMSG((hwnd), TCM_DISMISSTOOLTIPS, 0, 0)
+
+#define TCM_GETVERTICALMODEWIDTH    (TCM_FIRST + 70)
+#define TabCtrl_GetVerticalModeWidth(hwnd)\
+        (int)SNDMSG((hwnd), TCM_GETVERTICALMODEWIDTH, 0, 0)
+
+#define TCM_SETVERTICALMODEWIDTH    (TCM_FIRST + 71)
+#define TabCtrl_SetVerticalModeWidth(hwnd)\
+        (int)SNDMSG((hwnd), TCM_GETVERTICALMODEWIDTH, 0, 0)
+
 
 void ReadColors();
 #endif  /* __WINE_COMCTL32_H */

@@ -5,6 +5,7 @@
 * Copyright 1999 Alex Priem <alexp@sci.kun.nl>
 * Copyright 1999 Francis Beaudet
 * Copyright 2003 Vitaliy Margolen
+* Copyright 2021 KnIfER JK. Chen
 *
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU Lesser General Public
@@ -20,7 +21,7 @@
 * License along with this library; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
 *
-* NOTES
+* NOTES (of Wine)
 *
 * This code was audited for completeness against the documented features
 * of Comctl32.dll version 6.0 on May. 20, 2005, by James Hawkins.
@@ -29,7 +30,7 @@
 * the specification mentioned above.
 * If you discover missing features, or bugs, please note them below.
 *
-* TODO:
+* TODO: (of Wine)
 *
 *  Styles:
 *   TCS_MULTISELECT - implement for VK_SPACE selection
@@ -50,6 +51,11 @@
 *  Macros:
 *   TabCtrl_AdjustRect
 *
+* New Features : ( MyTabControl )
+*	Vertical mode, totally "neck-harmless". Tabs are listed in a resizable side bar, better than that of Edge. 
+*		Style : TCS_VERTICAL
+*	Maximum rows capacity for multiline mode. Save Screen Space!
+*		Macro : TabCtrl_SetMaxRows
 */
 
 #include <assert.h>
@@ -71,6 +77,7 @@
 #include "dpa_dsa.h"
 #include "debug.h"
 #include <math.h>
+#include <windowsx.h>
 
 #include <vector>
 
@@ -136,6 +143,11 @@ typedef struct
 	INT        topmostVisible; /* Used for scrolling, this member contains  the index of the first visible row */
 	INT        maxRange; /* Used for scrolling */
 
+	UINT		vModeWidth; /* Used for vertical mode */
+	BOOL		vModeDragging; /* Used for vertical mode */
+	UINT		vModeDragSt; /* Used for vertical mode */
+	UINT		vModeWidthSt; /* Used for vertical mode */
+
 	HTHEME htheme; /* https://stackoverflow.com/questions/55319559/why-is-my-window-losing-its-htmeme-when-i-call-setwindowlongptrgwl-style-on-it */
 } TAB_INFO;
 
@@ -181,6 +193,10 @@ static void TAB_EnsureSelectionVisible(TAB_INFO *);
 static void TAB_DrawItemInterior(const TAB_INFO *, HDC, INT, RECT*);
 static LRESULT _DeselectAll(TAB_INFO *, BOOL);
 static BOOL TAB_InternalGetItemRect(const TAB_INFO *, INT, RECT*, RECT*);
+static void TAB_SetItemBounds (TAB_INFO *infoPtr);
+static BOOL _GetIsVerticalResizeArea (TAB_INFO *infoPtr, int x, int y);
+static void Tab_TrackMouseStart (TAB_INFO *infoPtr, UINT start);
+static inline void Tab_TrackMouseEnd (TAB_INFO *infoPtr);
 
 static BOOL TAB_SendSimpleNotify (const TAB_INFO *infoPtr, UINT code)
 {
@@ -380,7 +396,7 @@ static BOOL TAB_InternalGetItemRect(
 		SetRectEmpty(selectedRect);
 		return FALSE;
 	}
-
+	
 	/*
 	* Avoid special cases in this procedure by assigning the "out"
 	* parameters if the caller didn't supply them
@@ -421,7 +437,7 @@ static BOOL TAB_InternalGetItemRect(
 	* "scroll" it to make sure the item at the very left of the
 	* tab control is the leftmost visible tab.
 	*/
-	if(infoPtr->dwStyle & TCS_MULTILINE)
+	if(infoPtr->dwStyle & TCS_MULTILINE || infoPtr->dwStyle & TCS_VERTICAL)
 	{
 		OffsetRect(itemRect,
 			0,
@@ -606,10 +622,29 @@ static inline LRESULT _NCHitTest (const TAB_INFO *infoPtr, LPARAM lParam)
 	pt.y = (short)HIWORD(lParam);
 	ScreenToClient(infoPtr->hwnd, &pt);
 
-	if (TAB_InternalHitTest(infoPtr, pt, &dummyflag) == -1)
+	if (infoPtr->dwStyle & TCS_VERTICAL)
+	{
+		if (pt.x>=0&&pt.x<=infoPtr->vModeWidth+8)
+		{
+			if (pt.y<=infoPtr->tabHeight*infoPtr->uNumRows)
+			{
+				return HTCLIENT;
+			}
+			if (pt.x+10>=infoPtr->vModeWidth)
+			{
+				return HTCLIENT;
+			}
+		}
+			
 		return HTTRANSPARENT;
+	}
 	else
-		return HTCLIENT;
+	{
+		if (TAB_InternalHitTest(infoPtr, pt, &dummyflag) == -1)
+			return HTTRANSPARENT;
+		else
+			return HTCLIENT;
+	}
 }
 
 static LRESULT _LButtonDown (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
@@ -632,6 +667,13 @@ static LRESULT _LButtonDown (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 
 	pt.x = (short)LOWORD(lParam);
 	pt.y = (short)HIWORD(lParam);
+
+	if (infoPtr->dwStyle & TCS_VERTICAL
+		&&(_GetIsVerticalResizeArea(infoPtr, pt.x, pt.y)))
+	{
+		Tab_TrackMouseStart(infoPtr, pt.x);
+		return 0;
+	}
 
 	newItem = TAB_InternalHitTest (infoPtr, pt, &dummy);
 
@@ -662,12 +704,21 @@ static LRESULT _LButtonDown (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 		}
 	}
 
+	// ||pt.y>infoPtr->tabHeight*infoPtr->uNumRows
+	if (newItem==-1
+		&&(infoPtr->dwStyle & TCS_VERTICAL) && pt.y>infoPtr->tabHeight*infoPtr->uNumRows+20)
+	{
+		Tab_TrackMouseStart(infoPtr, pt.x);
+	}
+
 	return 0;
 }
 
-static inline LRESULT _LButtonUp (const TAB_INFO *infoPtr)
+static inline LRESULT _LButtonUp (TAB_INFO *infoPtr)
 {
 	TAB_SendSimpleNotify(infoPtr, NM_CLICK);
+
+	Tab_TrackMouseEnd(infoPtr);
 
 	return 0;
 }
@@ -859,6 +910,82 @@ static void TAB_RecalcHotTrack
 *
 * Handles the mouse-move event.  Updates tooltips.  Updates hot-tracking.
 */
+
+static void Tab_TrackMouseStart (TAB_INFO *infoPtr, UINT start)
+{
+	if (!infoPtr->vModeDragging)
+	{
+		infoPtr->vModeDragging = true;
+		infoPtr->vModeDragSt = start;
+		infoPtr->vModeWidthSt = infoPtr->vModeWidth;
+		HCURSOR hcur = ::LoadCursor(NULL, IDC_SIZEWE);
+		::SetCursor(hcur);
+		SetCapture(infoPtr->hwnd);
+	}
+}
+
+static void Tab_TrackMouseMove (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
+{
+	int clientX = GET_X_LPARAM(lParam) - infoPtr->vModeDragSt + infoPtr->vModeWidthSt;
+	int minMax = infoPtr->tabHeight + 4;
+	if (clientX<minMax)
+	{
+		clientX=minMax;
+	}
+	RECT rc;
+	::GetClientRect(infoPtr->hwnd, &rc);
+	minMax = rc.right - rc.left;
+	if (clientX>minMax)
+	{
+		clientX=minMax;
+	}
+	infoPtr->vModeWidth = clientX;
+	TAB_SetItemBounds(infoPtr);
+	SendMessage(infoPtr->hwndNotify, WM_SIZE, 0, 0);
+	TAB_InvalidateTabArea(infoPtr);
+	//TAB_SendSimpleNotify(infoPtr, TCN_SIZECHANGE);
+}
+
+static LRESULT _TrackVerticalTabs (TAB_INFO *infoPtr, int x, int y)
+{
+	Tab_TrackMouseStart(infoPtr, x);
+	Tab_TrackMouseMove(infoPtr, x, y);
+	return 0;
+}
+
+static inline void Tab_TrackMouseEnd (TAB_INFO *infoPtr)
+{
+	if (infoPtr->vModeDragging)
+	{
+		infoPtr->vModeDragging = false;
+		ReleaseCapture();
+	}
+}
+
+static inline bool _GetIsTrackingMouse (TAB_INFO *infoPtr)
+{
+	return infoPtr->vModeDragging;
+}
+
+static inline LRESULT _DismissToolTips (TAB_INFO *infoPtr)
+{
+	if (infoPtr->hwndToolTip)
+		TAB_RelayEvent (infoPtr->hwndToolTip, infoPtr->hwndToolTip,
+			WM_NCMOUSEMOVE, 0, 0);
+	return 0;
+}
+
+static inline LRESULT _GetVerticalModeWidth (TAB_INFO *infoPtr)
+{
+	return infoPtr->vModeWidth;
+}
+
+static inline LRESULT _SetVerticalModeWidth (TAB_INFO *infoPtr, UINT val)
+{
+	infoPtr->vModeWidth = val;
+	return 0;
+}
+
 static LRESULT _MouseMove (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 {
 	int redrawLeave;
@@ -866,7 +993,7 @@ static LRESULT _MouseMove (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 
 	if (infoPtr->hwndToolTip)
 		TAB_RelayEvent (infoPtr->hwndToolTip, infoPtr->hwnd,
-			WM_LBUTTONDOWN, wParam, lParam);
+			WM_MOUSEMOVE, wParam, lParam);
 
 	/* Determine which tab to highlight.  Redraw tabs which change highlight
 	** status. */
@@ -874,6 +1001,20 @@ static LRESULT _MouseMove (TAB_INFO *infoPtr, WPARAM wParam, LPARAM lParam)
 
 	hottrack_refresh (infoPtr, redrawLeave);
 	hottrack_refresh (infoPtr, redrawEnter);
+
+	if (infoPtr->dwStyle & TCS_VERTICAL)
+	{
+		if (infoPtr->vModeDragging 
+			|| _GetIsVerticalResizeArea(infoPtr, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)))
+		{ 
+			HCURSOR hcur = ::LoadCursor(NULL, IDC_SIZEWE);
+			::SetCursor(hcur);
+			if (infoPtr->vModeDragging)
+			{
+				Tab_TrackMouseMove(infoPtr, wParam, lParam);
+			}
+		}
+	}
 
 	return 0;
 }
@@ -892,6 +1033,12 @@ static LRESULT _AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT prc)
 
 	if (!prc) return -1;
 
+	if(infoPtr->dwStyle & TCS_VERTICAL)
+	{
+		iRightBottom = &(prc->right);
+		iLeftTop     = &(prc->left);
+	}
+	else
 	{
 		iRightBottom = &(prc->bottom);
 		iLeftTop     = &(prc->top);
@@ -907,11 +1054,18 @@ static LRESULT _AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT prc)
 	if (fLarger) /* Go from display rectangle */
 	{
 		/* Add the height of the tabs. */
-		if (infoPtr->dwStyle & TCS_BOTTOM)
-			*iRightBottom += infoPtr->tabHeight * rows;
+		if(infoPtr->dwStyle & TCS_VERTICAL)
+		{
+			*iLeftTop -= infoPtr->vModeWidth;
+		}
 		else
-			*iLeftTop -= infoPtr->tabHeight * rows +
-			((infoPtr->dwStyle & TCS_BUTTONS)? 3 * (rows - 1) : 0);
+		{
+			if (infoPtr->dwStyle & TCS_BOTTOM)
+				*iRightBottom += infoPtr->tabHeight * rows;
+			else
+				*iLeftTop -= infoPtr->tabHeight * rows +
+				((infoPtr->dwStyle & TCS_BUTTONS)? 3 * (rows - 1) : 0);
+		}
 
 		/* Inflate the rectangle for the padding */
 		InflateRect(prc, DISPLAY_AREA_PADDINGX, DISPLAY_AREA_PADDINGY); 
@@ -927,12 +1081,19 @@ static LRESULT _AdjustRect(const TAB_INFO *infoPtr, WPARAM fLarger, LPRECT prc)
 		/* Deflate the rectangle for the padding */
 		InflateRect(prc, -DISPLAY_AREA_PADDINGX, -DISPLAY_AREA_PADDINGY);
 
-		/* Remove the height of the tabs. */
-		if (infoPtr->dwStyle & TCS_BOTTOM)
-			*iRightBottom -= infoPtr->tabHeight * rows;
+		if(infoPtr->dwStyle & TCS_VERTICAL)
+		{
+			*iLeftTop += infoPtr->vModeWidth;
+		}
 		else
-			*iLeftTop += (infoPtr->tabHeight) * rows +
-			((infoPtr->dwStyle & TCS_BUTTONS)? 3 * (rows - 1) : 0);
+		{
+			/* Remove the height of the tabs. */
+			if (infoPtr->dwStyle & TCS_BOTTOM)
+				*iRightBottom -= infoPtr->tabHeight * rows;
+			else
+				*iLeftTop += (infoPtr->tabHeight) * rows +
+				((infoPtr->dwStyle & TCS_BUTTONS)? 3 * (rows - 1) : 0);
+		}
 	}
 
 	return 0;
@@ -1020,7 +1181,12 @@ static void TAB_SetupScrolling(TAB_INFO*   infoPtr, const RECT* clientRect)
 		* Calculate the position of the scroll control.
 		*/
 		controlPos.right = clientRect->right;
+		if (infoPtr->dwStyle & TCS_VERTICAL)
+		{
+			controlPos.right = infoPtr->vModeWidth;
+		}
 		controlPos.left  = controlPos.right - dimX * GetSystemMetrics(SM_CXHSCROLL);
+
 
 		if (infoPtr->dwStyle & TCS_BOTTOM)
 		{
@@ -1146,6 +1312,7 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 	GetClientRect(infoPtr->hwnd, &clientRect);
 
 	int win_width = clientRect.right - clientRect.left;
+	int win_height = clientRect.bottom - clientRect.top;
 
 	/* Now use hPadding and vPadding */
 	infoPtr->uHItemPadding = infoPtr->uHItemPadding_s;
@@ -1260,8 +1427,16 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		* Wrap all these tabs. We will arrange them evenly later.
 		*
 		*/
-
-		if (((infoPtr->dwStyle & TCS_MULTILINE) || (infoPtr->dwStyle & TCS_VERTICAL)) &&
+		if (infoPtr->dwStyle & TCS_VERTICAL)
+		{
+			curr->rect.right = infoPtr->vModeWidth;
+			curr->rect.left = 0;
+			curr->rect.bottom = 0;
+			curr->rect.top = curItemRowCount - 1;
+			curItemRowCount++;
+			continue;
+		}
+		else if (((infoPtr->dwStyle & TCS_MULTILINE) || (infoPtr->dwStyle & TCS_VERTICAL)) &&
 			(curr->rect.right > 
 				(clientRect.right - CONTROL_BORDER_SIZEX - DISPLAY_AREA_PADDINGX)))
 		{
@@ -1312,7 +1487,13 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		}
 	}
 
-	if (!((infoPtr->dwStyle & TCS_MULTILINE) || (infoPtr->dwStyle & TCS_VERTICAL)))
+	if (infoPtr->dwStyle & TCS_VERTICAL)
+	{
+		infoPtr->tabMaxRows = win_height / infoPtr->tabHeight;
+		infoPtr->needsScrolling = FALSE;
+		infoPtr->leftmostVisible = 0;
+	}
+	else if (!(infoPtr->dwStyle & TCS_MULTILINE))
 	{
 		/*
 		* Check if we need a scrolling control.
@@ -1338,10 +1519,12 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 	infoPtr->uNumRows = curItemRowCount;
 
 	// 第二轮分割. Arrange all tabs evenly if style says so
-	if (!(infoPtr->dwStyle & TCS_RAGGEDRIGHT) &&
-		((infoPtr->dwStyle & TCS_MULTILINE) || (infoPtr->dwStyle & TCS_VERTICAL)) &&
-		(infoPtr->uNumItem > 0) &&
-		(infoPtr->uNumRows > 1))
+	if ((infoPtr->dwStyle & TCS_MULTILINE)
+		&& (infoPtr->dwStyle & TCS_VERTICAL)==0
+		&& (infoPtr->dwStyle & TCS_RAGGEDRIGHT)==0
+		&& (infoPtr->uNumItem > 0)
+		&& (infoPtr->uNumRows > 1)
+		)
 	{
 		UINT iRow,thisRowSep;
 		if(rowWidSepMap.size()>1)
@@ -1350,7 +1533,7 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 				,thisRow,upperRow,nextRowSep,upperRowWidth
 				,thisBorrowCount,itemToBorrowWid;
 
-			UINT avgTabItemWid = infoPtr->uNumItem && infoPtr->uNumRows
+			UINT avgTabItemWid = win_width && infoPtr->uNumItem && infoPtr->uNumRows
 				?win_width/(infoPtr->uNumItem/infoPtr->uNumRows):0;
 			TAB_ITEM *curr;
 			//Even out rows
@@ -1496,7 +1679,7 @@ static void TAB_SetItemBounds (TAB_INFO *infoPtr)
 		}
 	}
 
-	if (infoPtr->dwStyle & TCS_MULTILINE)
+	if (infoPtr->dwStyle & TCS_MULTILINE || infoPtr->dwStyle & TCS_VERTICAL)
 	{
 		infoPtr->multilineScrolling 
 			= infoPtr->tabMaxRows>0 && infoPtr->uNumRows > infoPtr->tabMaxRows;
@@ -2210,7 +2393,11 @@ static void TAB_DrawBorder(const TAB_INFO *infoPtr, HDC hdc)
 			rows = infoPtr->tabMaxRows;
 		}
 
-		if ((infoPtr->dwStyle & TCS_BOTTOM) && !(infoPtr->dwStyle & TCS_VERTICAL))
+		if (infoPtr->dwStyle & TCS_VERTICAL)
+		{
+			rect.top    += rect.bottom;
+		}
+		else if ((infoPtr->dwStyle & TCS_BOTTOM))
 			rect.bottom -= infoPtr->tabHeight * rows + CONTROL_BORDER_SIZEX;
 		else /* not TCS_VERTICAL and not TCS_BOTTOM */
 			rect.top    += infoPtr->tabHeight * rows + CONTROL_BORDER_SIZEX;
@@ -2242,7 +2429,15 @@ static void TAB_Refresh (const TAB_INFO *infoPtr, HDC hdc)
 	{
 		RECT clientRect;
 		GetClientRect(infoPtr->hwnd, &clientRect);
-		clientRect.bottom = clientRect.top + infoPtr->tabHeight*infoPtr->uNumRows + 8;
+
+		if (infoPtr->dwStyle & TCS_VERTICAL)
+		{
+			//clientRect.right = clientRect.left + infoPtr->vModeWidth + 10;
+		}
+		else
+		{
+			clientRect.bottom = clientRect.top + infoPtr->tabHeight*infoPtr->uNumRows + 8;
+		}
 		FillRect(hdc, &clientRect, GetSysColorBrush(COLOR_BTNFACE));
 	}
 
@@ -2407,7 +2602,12 @@ static void TAB_InvalidateTabArea(const TAB_INFO *infoPtr)
 	_AdjustRect(infoPtr, 0, &rAdjClient);
 
 	TAB_InternalGetItemRect(infoPtr, infoPtr->uNumItem-1 , &rect, NULL);
-	if (infoPtr->dwStyle & TCS_BOTTOM)
+
+	if (infoPtr->dwStyle & TCS_VERTICAL)
+	{
+		rInvalidate.right = rInvalidate.left + infoPtr->vModeWidth + 2;
+	}
+	else if (infoPtr->dwStyle & TCS_BOTTOM)
 	{
 		rInvalidate.top = rAdjClient.bottom;
 		if (infoPtr->uNumRows == 1)
@@ -2432,7 +2632,7 @@ static void TAB_InvalidateTabArea(const TAB_INFO *infoPtr)
 
 	TRACE("invalidate (%s)\n", wine_dbgstr_rect(&rInvalidate));
 
-	InvalidateRect(infoPtr->hwnd, &rInvalidate, infoPtr->dwStyle&TCS_FLICKERFREE==0);
+	InvalidateRect(infoPtr->hwnd, &rInvalidate, (infoPtr->dwStyle&TCS_FLICKERFREE)==0);
 }
 
 HDC         hdcMem;
@@ -2932,6 +3132,21 @@ static LRESULT _Create (HWND hwnd, LPARAM lParam)
 
 			SendMessageW (infoPtr->hwndNotify, WM_NOTIFY,
 				GetWindowLongPtrW(hwnd, GWLP_ID), (LPARAM)&nmttc);
+
+
+			SetWindowPos(infoPtr->hwndToolTip, HWND_TOPMOST, 0, 0, 0, 0,
+				SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
+			);
+
+			// Associate the tooltip with the tool.
+			TOOLINFO toolInfo = { 0 };
+			toolInfo.cbSize = sizeof(toolInfo);
+			toolInfo.hwnd = infoPtr->hwndNotify;
+			toolInfo.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
+			toolInfo.uId = (UINT_PTR)infoPtr->hwnd;
+			toolInfo.lpszText = LPSTR_TEXTCALLBACK; // pszText;
+			SendMessage(infoPtr->hwndToolTip, TTM_ADDTOOL, 0, (LPARAM)&toolInfo);
+
 		}
 	}
 
@@ -2961,6 +3176,9 @@ static LRESULT _Create (HWND hwnd, LPARAM lParam)
 
 	infoPtr->tabMinWidth = -1;
 	infoPtr->tabMaxRows = -1;
+
+	infoPtr->vModeWidth = 180;
+	infoPtr->vModeDragging = false;
 
 	infoPtr->htheme = ::GetWindowTheme(infoPtr->hwnd);
 
@@ -3100,6 +3318,19 @@ static LRESULT _SetMaxRows (TAB_INFO *infoPtr, DWORD maxRows)
 	return 0;
 }
 
+static BOOL _GetIsVerticalResizeArea (TAB_INFO *infoPtr, int x, int y)
+{
+	if (x+8>infoPtr->vModeWidth)
+	{
+		return true;
+	}
+	if (y>infoPtr->tabHeight*infoPtr->uNumRows && x+15>infoPtr->vModeWidth)
+	{
+		return true;
+	}
+	return false;
+}
+
 static LRESULT _DeselectAll (TAB_INFO *infoPtr, BOOL excludesel)
 {
 	BOOL paint = FALSE;
@@ -3204,6 +3435,12 @@ static LRESULT WINAPI TAB_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 	case TCM_GETEXTENDEDSTYLE: return _GetExtendedStyle (infoPtr);
 	case TCM_SETEXTENDEDSTYLE: return _SetExtendedStyle (infoPtr, wParam, lParam);
 	case TCM_SETMAXROWS: return _SetMaxRows (infoPtr, (INT)wParam);
+	
+	case TCM_GETISVERTICALRESIZEAREA: return _GetIsVerticalResizeArea(infoPtr, wParam, lParam);
+	case TCM_TRACKVERTICALTABS: return _TrackVerticalTabs(infoPtr, wParam, lParam);
+	case TCM_DISMISSTOOLTIPS: return _DismissToolTips(infoPtr);
+	case TCM_GETVERTICALMODEWIDTH: return _GetVerticalModeWidth(infoPtr);
+	case TCM_SETVERTICALMODEWIDTH: return _SetVerticalModeWidth(infoPtr, wParam);
 
 	case WM_GETFONT: return _GetFont (infoPtr);
 	case WM_SETFONT: return _SetFont (infoPtr, (HFONT)wParam);
