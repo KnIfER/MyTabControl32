@@ -60,7 +60,7 @@ inline BOOL COMCTL32_IsReflectedMessage(UINT uMsg)
 
 
 #define TRACE(MSG,...) LogIs(3,MSG,__VA_ARGS__) 
-#define TRACE(MSG,...) /##/## MSG
+//#define TRACE(MSG,...) /##/## MSG
 
 #define FIXME TRACE
 #define WARN TRACE
@@ -83,6 +83,16 @@ inline const CHAR* wine_dbgstr_rect(RECT* rect) {
     {
         //CHAR* buffer = malloc(512);
         sprintf_s(buffer, 255, "%ld %ld %ld %ld", rect->left, rect->top, rect->right, rect->bottom);
+        return buffer;
+    }
+    return "[/]";
+};
+
+inline const CHAR* wine_dbgstr_point(POINT* point) {
+    if (point)
+    {
+        //CHAR* buffer = malloc(512);
+        sprintf_s(buffer, 255, "%ld %ld", point->x, point->y);
         return buffer;
     }
     return "[/]";

@@ -118,6 +118,9 @@
 
 #define TCN_SIZECHANGE         (TCN_FIRST - 6)
 
+
+#define TBS_FOCUSNEVER    0x2000
+
 typedef struct
 {
     COLORREF clrBtnHighlight;       /* COLOR_BTNHIGHLIGHT                  */

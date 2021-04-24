@@ -111,16 +111,14 @@ static inline int notify_customdraw (const TRACKBAR_INFO *infoPtr, NMCUSTOMDRAW 
 static LRESULT notify_hdr (const TRACKBAR_INFO *infoPtr, INT code, LPNMHDR pnmh)
 {
 	LRESULT result;
-
-	TRACE("(code=%d)\n", code);
+	//TRACE("notify_hdr::(code=%d)\n", code);
 
 	pnmh->hwndFrom = infoPtr->hwndSelf;
 	pnmh->idFrom = GetWindowLongPtrW(infoPtr->hwndSelf, GWLP_ID);
 	pnmh->code = code;
 	result = SendMessageW(infoPtr->hwndNotify, WM_NOTIFY, pnmh->idFrom, (LPARAM)pnmh);
 
-	TRACE("  <= %ld\n", result);
-
+	//TRACE("notify_hdr  <= %ld\n", result);
 	return result;
 }
 
@@ -134,8 +132,7 @@ static void notify_with_scroll (const TRACKBAR_INFO *infoPtr, UINT code)
 {
 	UINT scroll = infoPtr->dwStyle & TBS_VERT ? WM_VSCROLL : WM_HSCROLL;
 
-	TRACE("%x\n", code);
-
+	//TRACE("notify_with_scroll::%x\n", code);
 	SendMessageW (infoPtr->hwndNotify, scroll, code, (LPARAM)infoPtr->hwndSelf);
 }
 
@@ -196,7 +193,7 @@ static inline LONG TRACKBAR_ConvertPlaceToPosition (const TRACKBAR_INFO *infoPtr
 	else if (pos < infoPtr->lRangeMin)
 		pos = infoPtr->lRangeMin;
 
-	TRACE("%.2f\n", pos);
+	//TRACE("PlaceToPosition::%.2f\n", pos);
 	return (LONG)floor(pos + 0.5);
 }
 
@@ -1090,7 +1087,7 @@ static int __cdecl comp_tics (const void *ap, const void *bp)
 	const DWORD a = *(const DWORD *)ap;
 	const DWORD b = *(const DWORD *)bp;
 
-	TRACE("(a=%d, b=%d)\n", a, b);
+	//TRACE("comp_tics::(a=%d, b=%d)\n", a, b);
 	if (a < b) return -1;
 	if (a > b) return 1;
 	return 0;
@@ -1347,8 +1344,7 @@ static inline LRESULT _SetTic (TRACKBAR_INFO *infoPtr, LONG lPos)
 	TRACE("lPos=%d\n", lPos);
 
 	infoPtr->uNumTics++;
-	infoPtr->tics=(LPLONG)ReAlloc( infoPtr->tics,
-		(infoPtr->uNumTics)*sizeof (DWORD));
+	infoPtr->tics=(LPLONG)ReAlloc( infoPtr->tics, (infoPtr->uNumTics)*sizeof (DWORD));
 	if (!infoPtr->tics) {
 		infoPtr->uNumTics = 0;
 		notify(infoPtr, NM_OUTOFMEMORY);
@@ -1455,6 +1451,9 @@ static LRESULT _Create (HWND hwnd, const CREATESTRUCTW *lpcs)
 	infoPtr->tics      = NULL;
 	infoPtr->hwndNotify= lpcs->hwndParent;
 
+	infoPtr->flags = 0;
+	infoPtr->bUnicode = true;
+
 	_InitializeThumb (infoPtr);
 
 	/* Create tooltip control */
@@ -1515,7 +1514,10 @@ static LRESULT _LButtonDown (TRACKBAR_INFO *infoPtr, INT x, INT y)
 	clickPoint.x = x;
 	clickPoint.y = y;
 
-	SetFocus(infoPtr->hwndSelf);
+	if ((infoPtr->dwStyle & TBS_FOCUSNEVER)==0)
+	{
+		SetFocus(infoPtr->hwndSelf);
+	}
 
 	if (PtInRect(&infoPtr->rcThumb, clickPoint)) {
 		infoPtr->flags |= TB_DRAG_MODE;
@@ -1557,7 +1559,7 @@ static LRESULT _LButtonUp (TRACKBAR_INFO *infoPtr)
 	return 0;
 }
 
-static LRESULT TRACKBAR_CaptureChanged (const TRACKBAR_INFO *infoPtr)
+static LRESULT _CaptureChanged (const TRACKBAR_INFO *infoPtr)
 {
 	notify_with_scroll (infoPtr, TB_ENDTRACK);
 	return 0;
@@ -1580,8 +1582,11 @@ static LRESULT _Paint (TRACKBAR_INFO *infoPtr, HDC hdc)
 static LRESULT _SetFocus (TRACKBAR_INFO *infoPtr)
 {
 	TRACE("\n");
-	infoPtr->flags |= TB_IS_FOCUSED;
-	TRACKBAR_InvalidateAll(infoPtr);
+	if (((infoPtr->dwStyle & TBS_FOCUSNEVER)==0))
+	{
+		infoPtr->flags |= TB_IS_FOCUSED;
+		TRACKBAR_InvalidateAll(infoPtr);
+	}
 
 	return 0;
 }
@@ -1635,7 +1640,7 @@ static LRESULT _MouseMove (TRACKBAR_INFO *infoPtr, INT x, INT y)
 	INT clickPlace = (infoPtr->dwStyle & TBS_VERT) ? y : x;
 	LONG dragPos, oldPos = infoPtr->lPos;
 
-	TRACE("(x=%d. y=%d)\n", x, y);
+	//TRACE("_MouseMove::(x=%d. y=%d)\n", x, y);
 
 	if (infoPtr->flags & TB_AUTO_PAGE) {
 		POINT pt;
@@ -1697,7 +1702,7 @@ static BOOL _KeyDown (TRACKBAR_INFO *infoPtr, INT nVirtKey)
 	BOOL vert = infoPtr->dwStyle & TBS_VERT;
 	LONG pos = infoPtr->lPos;
 
-	TRACE("%x\n", nVirtKey);
+	TRACE("_KeyDown::%x\n", nVirtKey);
 
 	switch (nVirtKey) {
 	case VK_UP:
@@ -1776,7 +1781,7 @@ static LRESULT WINAPI TRACKBAR_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, 
 {
 	TRACKBAR_INFO *infoPtr = (TRACKBAR_INFO *)GetWindowLongPtrW (hwnd, 0);
 
-	TRACE("hwnd=%p msg=%x wparam=%lx lparam=%lx\n", hwnd, uMsg, wParam, lParam);
+	//TRACE("hwnd=%p msg=%x wparam=%lx lparam=%lx\n", hwnd, uMsg, wParam, lParam);
 
 	if (!infoPtr && (uMsg != WM_CREATE))
 		return DefWindowProcW (hwnd, uMsg, wParam, lParam);
@@ -1786,8 +1791,7 @@ static LRESULT WINAPI TRACKBAR_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, 
 	case TBM_CLEARSEL: return _ClearSel (infoPtr, (BOOL)wParam);
 	case TBM_CLEARTICS: return _ClearTics (infoPtr, (BOOL)wParam);
 	
-	case TBM_GETBUDDY:
-		return (LRESULT)(wParam ? infoPtr->hwndBuddyLA : infoPtr->hwndBuddyRB);
+	case TBM_GETBUDDY: return (LRESULT)(wParam?infoPtr->hwndBuddyLA:infoPtr->hwndBuddyRB);
 	case TBM_GETCHANNELRECT: return _GetChannelRect (infoPtr, (LPRECT)lParam);
 	case TBM_GETLINESIZE: return infoPtr->lLineSize;
 	case TBM_GETNUMTICS: return _GetNumTics (infoPtr);
@@ -1823,9 +1827,7 @@ static LRESULT WINAPI TRACKBAR_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, 
 	case TBM_SETTOOLTIPS: return _SetToolTips (infoPtr, (HWND)wParam);
 	case TBM_SETUNICODEFORMAT: return _SetUnicodeFormat (infoPtr, (BOOL)wParam);
 
-	case WM_CAPTURECHANGED:
-		if (hwnd == (HWND)lParam) return 0;
-		return TRACKBAR_CaptureChanged (infoPtr);
+	case WM_CAPTURECHANGED: return hwnd==(HWND)lParam?0 : _CaptureChanged (infoPtr);
 	case WM_CREATE: return _Create (hwnd, (LPCREATESTRUCTW)lParam);
 	case WM_DESTROY: return _Destroy (infoPtr);
 	case WM_ENABLE: return _Enable (infoPtr, (BOOL)wParam);
