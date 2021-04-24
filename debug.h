@@ -21,13 +21,13 @@
 
 static int tab = 1;
 
-int TRACE_ON(int type)
+inline int TRACE_ON(int type)
 {
     return 1;
 }
 
 
-BOOL COMCTL32_IsReflectedMessage(UINT uMsg)
+inline BOOL COMCTL32_IsReflectedMessage(UINT uMsg)
 {
     switch (uMsg)
     {
@@ -58,23 +58,27 @@ BOOL COMCTL32_IsReflectedMessage(UINT uMsg)
 #define debugstr_w  
 #define debugstr_a  
 
-void nothing(const CHAR* msg, ...){}
 
 #define TRACE(MSG,...) LogIs(3,MSG,__VA_ARGS__) 
-//#define TRACE nothing
 #define TRACE(MSG,...) /##/## MSG
 
 #define FIXME TRACE
 #define WARN TRACE
+#define ERR TRACE
 
-int Free(void* ptr) {
+inline int Free(void* ptr) {
   //  free(ptr);
     return 0;
 };
 
+inline void* ReAlloc(void*  _Block, size_t _Size) {
+  //  free(ptr);
+    return realloc(_Block, _Size);
+};
+
 static CHAR buffer[512];
 
-const CHAR* wine_dbgstr_rect(RECT* rect) {
+inline const CHAR* wine_dbgstr_rect(RECT* rect) {
     if (rect)
     {
         //CHAR* buffer = malloc(512);
@@ -84,6 +88,6 @@ const CHAR* wine_dbgstr_rect(RECT* rect) {
     return "[/]";
 };
 
-void* Alloc(size_t sz) {
+inline void* Alloc(size_t sz) {
     return malloc(sz);
 };
