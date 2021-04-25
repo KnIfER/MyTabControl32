@@ -120,6 +120,7 @@
 
 
 #define TBS_FOCUSNEVER    0x2000
+#define TBS_BOOKMARKTICS    0x4000
 
 typedef struct
 {

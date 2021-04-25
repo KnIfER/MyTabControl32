@@ -38,6 +38,9 @@
 
 #include "debug.h"
 
+#include <vector>
+#include<algorithm>
+
 #include "comctl32.h"
 
 //WINE_DEFAULT_DEBUG_CHANNEL(trackbar);
@@ -66,7 +69,7 @@ typedef struct
 	RECT rcChannel;
 	RECT rcSelection;
 	RECT rcThumb;
-	LPLONG tics;
+	std::vector<DWORD> tics;
 } TRACKBAR_INFO;
 
 #define TB_REFRESH_TIMER	1
@@ -98,6 +101,8 @@ need to be recalculated */
 #define TIC_SELECTIONMARKMAX    0x80
 #define TIC_SELECTIONMARKMIN    0x100
 #define TIC_SELECTIONMARK       (TIC_SELECTIONMARKMAX | TIC_SELECTIONMARKMIN)
+
+static LRESULT _MouseMove (TRACKBAR_INFO *infoPtr, INT x, INT y);
 
 static const WCHAR themeClass[] = L"Trackbar";
 
@@ -148,20 +153,13 @@ static void TRACKBAR_RecalculateTics (TRACKBAR_INFO *infoPtr)
 			nrTics--;
 	}
 	else {
-		Free (infoPtr->tics);
-		infoPtr->tics = NULL;
+		infoPtr->tics.clear();
 		infoPtr->uNumTics = 0;
 		return;
 	}
 
 	if (nrTics != infoPtr->uNumTics) {
-		infoPtr->tics=(LPLONG)ReAlloc (infoPtr->tics,
-			(nrTics+1)*sizeof (DWORD));
-		if (!infoPtr->tics) {
-			infoPtr->uNumTics = 0;
-			notify(infoPtr, NM_OUTOFMEMORY);
-			return;
-		}
+		infoPtr->tics.resize(nrTics);
 		infoPtr->uNumTics = nrTics;
 	}
 
@@ -480,30 +478,45 @@ static void TRACKBAR_DrawOneTic (const TRACKBAR_INFO *infoPtr, HDC hdc, LONG tic
 			infoPtr->rcChannel.right - offsetthumb - 1, infoPtr->rcThumb.bottom + 2);
 	}
 
-	if (flags & (TBS_TOP | TBS_LEFT)) {
-		x = rcTics.left;
-		y = rcTics.top;
-		side = -1;
-	} else {
-		x = rcTics.right;
-		y = rcTics.bottom;
-		side = 1;
-	}
-
-	range = infoPtr->lRangeMax - infoPtr->lRangeMin;
-	if (range <= 0)
-		range = 1; /* to avoid division by zero */
-
 	if (flags & TIC_SELECTIONMARK) {
 		indent = (flags & TIC_SELECTIONMARKMIN) ? -1 : 1;
 	} else if (flags & TIC_EDGE) {
 		len++;
 	}
 
-	if (flags & TBS_VERT) {
+	if (flags & (TBS_TOP | TBS_LEFT)) {
+		x = rcTics.left;
+		y = rcTics.top;
+		side = -1;
+	} 
+	else {
+		x = rcTics.right;
+		y = rcTics.bottom;
+		side = 1;
+	}
+
+	int tickLen = len * side;
+
+	range = infoPtr->lRangeMax - infoPtr->lRangeMin;
+	if (range <= 0)
+		range = 1; /* to avoid division by zero */
+
+	if (flags & TBS_VERT) 
+	{
+		if (flags & TBS_BOOKMARKTICS)
+		{
+			tickLen *= 4;
+			x = rcTics.left + (rcTics.right - rcTics.left - tickLen)/2;
+		}
 		int height = rcTics.bottom - rcTics.top;
 		y = rcTics.top + (height*(ticPos - infoPtr->lRangeMin))/range;
-	} else {
+	} 
+	else {
+		if (flags & TBS_BOOKMARKTICS)
+		{
+			tickLen *= 4;
+			y = rcTics.top + (rcTics.bottom - rcTics.top - tickLen)/2;
+		}
 		int width = rcTics.right - rcTics.left;
 		x = rcTics.left + (width*(ticPos - infoPtr->lRangeMin))/range;
 	}
@@ -511,8 +524,8 @@ static void TRACKBAR_DrawOneTic (const TRACKBAR_INFO *infoPtr, HDC hdc, LONG tic
 	ox = x;
 	oy = y;
 	MoveToEx(hdc, x, y, 0);
-	if (flags & TBS_VERT) x += len * side;
-	else y += len * side;
+	if (flags & TBS_VERT) x += tickLen;
+	else y += tickLen;
 	LineTo(hdc, x, y);
 
 	if (flags & TIC_SELECTIONMARK) {
@@ -545,7 +558,7 @@ static inline void TRACKBAR_DrawTic (const TRACKBAR_INFO *infoPtr, HDC hdc, LONG
 static void TRACKBAR_DrawTics (const TRACKBAR_INFO *infoPtr, HDC hdc)
 {
 	unsigned int i;
-	int ticFlags = infoPtr->dwStyle & 0x0f;
+	int ticFlags = infoPtr->dwStyle;
 	LOGPEN ticPen = { PS_SOLID, {1, 0}, GetSysColor (COLOR_3DDKSHADOW) };
 	HPEN hOldPen, hTicPen;
 	HTHEME theme = GetWindowTheme (infoPtr->hwndSelf);
@@ -563,8 +576,8 @@ static void TRACKBAR_DrawTics (const TRACKBAR_INFO *infoPtr, HDC hdc)
 	for (i=0; i<infoPtr->uNumTics; i++)
 		TRACKBAR_DrawTic (infoPtr, hdc, infoPtr->tics[i], ticFlags);
 
-	TRACKBAR_DrawTic (infoPtr, hdc, infoPtr->lRangeMin, ticFlags | TIC_EDGE);
-	TRACKBAR_DrawTic (infoPtr, hdc, infoPtr->lRangeMax, ticFlags | TIC_EDGE);
+	//TRACKBAR_DrawTic (infoPtr, hdc, infoPtr->lRangeMin, ticFlags | TIC_EDGE);
+	//TRACKBAR_DrawTic (infoPtr, hdc, infoPtr->lRangeMax, ticFlags | TIC_EDGE);
 
 	if ((infoPtr->dwStyle & TBS_ENABLESELRANGE) && TRACKBAR_HasSelection(infoPtr)) {
 		TRACKBAR_DrawTic (infoPtr, hdc, infoPtr->lSelMin,
@@ -1052,9 +1065,8 @@ static LRESULT _ClearSel (TRACKBAR_INFO *infoPtr, BOOL fRedraw)
 
 static LRESULT _ClearTics (TRACKBAR_INFO *infoPtr, BOOL fRedraw)
 {
-	if (infoPtr->tics) {
-		Free (infoPtr->tics);
-		infoPtr->tics = NULL;
+	if (infoPtr->tics.size()) {
+		infoPtr->tics = std::vector<DWORD>();
 		infoPtr->uNumTics = 0;
 	}
 
@@ -1095,10 +1107,13 @@ static int __cdecl comp_tics (const void *ap, const void *bp)
 
 static inline LONG _GetTic (const TRACKBAR_INFO *infoPtr, INT iTic)
 {
-	if ((iTic < 0) || (iTic >= infoPtr->uNumTics) || !infoPtr->tics)
+	if ((iTic < 0) || (iTic >= infoPtr->uNumTics) || !infoPtr->tics.size())
 		return -1;
 
-	qsort(infoPtr->tics, infoPtr->uNumTics, sizeof(DWORD), comp_tics);
+	//qsort(infoPtr->tics, infoPtr->uNumTics, sizeof(DWORD), comp_tics);
+	qsort((void*)&infoPtr->tics[0], infoPtr->tics.size(), sizeof(DWORD), comp_tics);
+	// https://stackoverflow.com/questions/12308243/trying-to-use-qsort-with-vector
+	//std::sort(infoPtr->tics.begin(), infoPtr->tics.end(), comp_tics);
 	return infoPtr->tics[iTic];
 }
 
@@ -1107,7 +1122,7 @@ static inline LONG _GetTicPos (const TRACKBAR_INFO *infoPtr, INT iTic)
 	LONG range, width, pos, tic;
 	int offsetthumb;
 
-	if ((iTic < 0) || (iTic >= infoPtr->uNumTics) || !infoPtr->tics)
+	if ((iTic < 0) || (iTic >= infoPtr->uNumTics) || !infoPtr->tics.size())
 		return -1;
 
 	tic   = _GetTic (infoPtr, iTic);
@@ -1341,16 +1356,11 @@ static inline LRESULT _SetTic (TRACKBAR_INFO *infoPtr, LONG lPos)
 	if ((lPos < infoPtr->lRangeMin) || (lPos> infoPtr->lRangeMax))
 		return FALSE;
 
-	TRACE("lPos=%d\n", lPos);
+	TRACE("_SetTic lPos=%d %d", lPos, infoPtr->tics.size());
 
 	infoPtr->uNumTics++;
-	infoPtr->tics=(LPLONG)ReAlloc( infoPtr->tics, (infoPtr->uNumTics)*sizeof (DWORD));
-	if (!infoPtr->tics) {
-		infoPtr->uNumTics = 0;
-		notify(infoPtr, NM_OUTOFMEMORY);
-		return FALSE;
-	}
-	infoPtr->tics[infoPtr->uNumTics-1] = lPos;
+	// todo binary insert
+	infoPtr->tics.push_back(lPos);
 
 	TRACKBAR_InvalidateAll(infoPtr);
 
@@ -1429,9 +1439,7 @@ static LRESULT _InitializeThumb (TRACKBAR_INFO *infoPtr)
 
 static LRESULT _Create (HWND hwnd, const CREATESTRUCTW *lpcs)
 {
-	TRACKBAR_INFO *infoPtr;
-
-	infoPtr = (TRACKBAR_INFO *)Alloc (sizeof(TRACKBAR_INFO));
+	TRACKBAR_INFO *infoPtr = new TRACKBAR_INFO;
 	if (!infoPtr) return -1;
 	SetWindowLongPtrW (hwnd, 0, (DWORD_PTR)infoPtr);
 
@@ -1448,7 +1456,6 @@ static LRESULT _Create (HWND hwnd, const CREATESTRUCTW *lpcs)
 	infoPtr->fLocation = TBTS_TOP;
 	infoPtr->uNumTics  = 0;    /* start and end tic are not included in count*/
 	infoPtr->uTicFreq  = 1;
-	infoPtr->tics      = NULL;
 	infoPtr->hwndNotify= lpcs->hwndParent;
 
 	infoPtr->flags = 0;
@@ -1488,8 +1495,7 @@ static LRESULT _Destroy (TRACKBAR_INFO *infoPtr)
 	if (infoPtr->hwndToolTip)
 		DestroyWindow (infoPtr->hwndToolTip);
 
-	Free (infoPtr->tics);
-	infoPtr->tics = NULL;
+	//infoPtr->tics.clear();
 
 	SetWindowLongPtrW (infoPtr->hwndSelf, 0, 0);
 	CloseThemeData (GetWindowTheme (infoPtr->hwndSelf));
@@ -1519,12 +1525,18 @@ static LRESULT _LButtonDown (TRACKBAR_INFO *infoPtr, INT x, INT y)
 		SetFocus(infoPtr->hwndSelf);
 	}
 
-	if (PtInRect(&infoPtr->rcThumb, clickPoint)) {
+	//if (PtInRect(&infoPtr->rcThumb, clickPoint)) 
+	if (1) 
+	{
 		infoPtr->flags |= TB_DRAG_MODE;
 		SetCapture (infoPtr->hwndSelf);
 		TRACKBAR_UpdateToolTip (infoPtr);
 		TRACKBAR_ActivateToolTip (infoPtr, TRUE);
 		TRACKBAR_InvalidateThumb(infoPtr, infoPtr->lPos);
+		if (!PtInRect(&infoPtr->rcThumb, clickPoint))
+		{
+			_MouseMove(infoPtr, x, y);
+		}
 	} else {
 		LONG dir = TRACKBAR_GetAutoPageDirection(infoPtr, clickPoint);
 		if (dir == 0) return 0;
@@ -1797,7 +1809,7 @@ static LRESULT WINAPI TRACKBAR_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, 
 	case TBM_GETNUMTICS: return _GetNumTics (infoPtr);
 	case TBM_GETPAGESIZE: return infoPtr->lPageSize;
 	case TBM_GETPOS: return infoPtr->lPos;
-	case TBM_GETPTICS: return (LRESULT)infoPtr->tics;
+	case TBM_GETPTICS: return (LRESULT)infoPtr->tics.data();
 	case TBM_GETRANGEMAX: return infoPtr->lRangeMax;
 	case TBM_GETRANGEMIN: return infoPtr->lRangeMin;
 	case TBM_GETSELEND: return infoPtr->lSelMax;
