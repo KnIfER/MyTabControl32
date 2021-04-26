@@ -14,8 +14,10 @@ public:
 		return _hParent;
 	};
 protected:
+	HINSTANCE _hInst;
 	HWND _hWnd;
 	HWND _hParent;
+	WNDPROC _SysWndProc=NULL;
 };
 
 

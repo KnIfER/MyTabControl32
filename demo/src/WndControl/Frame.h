@@ -1,6 +1,7 @@
 #pragma once
 #include "WindowBase.h"
 #include "TabLayout.h"
+#include "ButtonList.h"
 
 class Frame : public WindowBase 
 {
@@ -17,6 +18,7 @@ public:
 	void showWindow();
 
 	TabLayout* tabLayout;
+	ButtonList* toolbar;
 protected:
 	WNDPROC _SysWndProc=NULL;
 

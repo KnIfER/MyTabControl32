@@ -1,8 +1,9 @@
 #include <windows.h>
 #include "Frame.h"
 #include "TabLayout.h"
-#include "MyTabControl32.h"
+#include "XPlusPlayer.h"
 #include <iostream>
+
 
 struct DemoData
 {
@@ -73,6 +74,21 @@ wWinMain(_In_ HINSTANCE hInstance,
 
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
+
+		if (msg.message==WM_LBUTTONDOWN)
+		{
+			if (msg.hwnd==app->toolbar->getHWND())
+			{
+
+			}
+			if (IsChild(app->GetMediaPlayerHWND(), msg.hwnd))
+			{
+				ReleaseCapture();
+				SendMessage(app->getHWND(), WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
+
+			}
+		}
+
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}

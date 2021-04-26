@@ -19,6 +19,9 @@
     <Filter Include="Source Files\demo_src\WndControl">
       <UniqueIdentifier>{1ce01f04-8960-4fd7-9230-e74f402f512e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\demo_src\ImageList">
+      <UniqueIdentifier>{33ca405a-7794-4c6f-b508-386ae35148a3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\MyTabControl32.cpp">
@@ -30,14 +33,11 @@
     <ClCompile Include="src\WndControl\Frame.cpp">
       <Filter>Source Files\demo_src\WndControl</Filter>
     </ClCompile>
-    <ClCompile Include="..\InsituDebug.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\WndControl\ButtonList.cpp">
+      <Filter>Source Files\demo_src\WndControl</Filter>
     </ClCompile>
-    <ClCompile Include="..\tab.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\comctl32.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\ImgList\ImageList.cpp">
+      <Filter>Source Files\demo_src\ImageList</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -56,19 +56,54 @@
     <ClInclude Include="src\WndControl\Frame.h">
       <Filter>Source Files\demo_src\WndControl</Filter>
     </ClInclude>
-    <ClInclude Include="..\InsituDebug.h">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="src\WndControl\ButtonList.h">
+      <Filter>Source Files\demo_src\WndControl</Filter>
     </ClInclude>
-    <ClInclude Include="..\comctl32.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\debug.h">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="src\ImgList\ImageList.h">
+      <Filter>Source Files\demo_src\ImageList</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\demo.rc">
       <Filter>Source Files\demo_src</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\Bottom.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\Left.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\Right.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\Star.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\top.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\icons.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\demoVideoPlayer\res\play.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\win32xx880\samples\toolbardemo\src\res\icon1.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\demoVideoPlayer\res\folder.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\demoVideoPlayer\res\nxt.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\demoVideoPlayer\res\prev.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\demoVideoPlayer\res\stop.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

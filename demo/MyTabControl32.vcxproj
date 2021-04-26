@@ -11,25 +11,37 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\comctl32.cpp" />
-    <ClCompile Include="..\InsituDebug.cpp" />
-    <ClCompile Include="..\tab.cpp" />
+    <ClCompile Include="src\ImgList\ImageList.cpp" />
     <ClCompile Include="src\MyTabControl32.cpp" />
     <ClCompile Include="src\WndControl\Frame.cpp" />
     <ClCompile Include="src\WndControl\TabLayout.cpp" />
+    <ClCompile Include="src\WndControl\ButtonList.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\comctl32.h" />
-    <ClInclude Include="..\debug.h" />
-    <ClInclude Include="..\InsituDebug.h" />
+    <ClInclude Include="src\ImgList\ImageList.h" />
     <ClInclude Include="src\MyTabControl32.h" />
     <ClInclude Include="src\resource.h" />
     <ClInclude Include="src\WndControl\Frame.h" />
     <ClInclude Include="src\WndControl\TabLayout.h" />
+    <ClInclude Include="src\WndControl\ButtonList.h" />
     <ClInclude Include="src\WndControl\WindowBase.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\demo.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\demoVideoPlayer\res\folder.ico" />
+    <Image Include="..\demoVideoPlayer\res\nxt.ico" />
+    <Image Include="..\demoVideoPlayer\res\play.ico" />
+    <Image Include="..\demoVideoPlayer\res\prev.ico" />
+    <Image Include="..\demoVideoPlayer\res\stop.ico" />
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\Bottom.ico" />
+    <Image Include="..\win32xx880\samples\toolbardemo\src\res\icon1.ico" />
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\Left.ico" />
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\Right.ico" />
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\Star.ico" />
+    <Image Include="..\Win32xx880\samples\ToolBarDemo\src\res\top.ico" />
+    <Image Include="res\icons.bmp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -78,6 +90,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>../;./;./src;./src/WndControl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -85,6 +98,10 @@
       <MinimumRequiredVersion>5.01</MinimumRequiredVersion>
       <AdditionalDependencies>UxTheme.lib;Comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Manifest>
+      <AdditionalManifestFiles>
+      </AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>

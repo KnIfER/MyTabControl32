@@ -136,9 +136,15 @@ static inline int notify (const TRACKBAR_INFO *infoPtr, INT code)
 static void notify_with_scroll (const TRACKBAR_INFO *infoPtr, UINT code)
 {
 	UINT scroll = infoPtr->dwStyle & TBS_VERT ? WM_VSCROLL : WM_HSCROLL;
-
-	//TRACE("notify_with_scroll::%x\n", code);
-	SendMessageW (infoPtr->hwndNotify, scroll, code, (LPARAM)infoPtr->hwndSelf);
+	if (infoPtr->dwStyle & TBS_SEEKBAR)
+	{
+		SendMessageW (infoPtr->hwndNotify, WM_HSCROLL, infoPtr->lPos, (LPARAM)infoPtr->hwndSelf);
+	}
+	else
+	{
+		//TRACE("notify_with_scroll::%x\n", code);
+		SendMessageW (infoPtr->hwndNotify, scroll, code, (LPARAM)infoPtr->hwndSelf);
+	}
 }
 
 static void TRACKBAR_RecalculateTics (TRACKBAR_INFO *infoPtr)
@@ -318,7 +324,7 @@ static void TRACKBAR_CalcChannel (TRACKBAR_INFO *infoPtr)
 
 static void TRACKBAR_CalcThumb (const TRACKBAR_INFO *infoPtr, LONG lPos, RECT *thumb)
 {
-	int range, width, height, thumbwidth;
+	LONG range, width, height, thumbwidth;
 	RECT lpRect;
 
 	range = infoPtr->lRangeMax - infoPtr->lRangeMin;
@@ -337,7 +343,7 @@ static void TRACKBAR_CalcThumb (const TRACKBAR_INFO *infoPtr, LONG lPos, RECT *t
 			thumb->left = 2;
 		thumb->right = thumb->left + infoPtr->uThumbLen;
 		thumb->top = infoPtr->rcChannel.top +
-			(height*(lPos - infoPtr->lRangeMin))/range;
+			height*((lPos - infoPtr->lRangeMin)*1.0/range);
 		thumb->bottom = thumb->top + thumbwidth;
 	}
 	else
@@ -345,7 +351,7 @@ static void TRACKBAR_CalcThumb (const TRACKBAR_INFO *infoPtr, LONG lPos, RECT *t
 		width = infoPtr->rcChannel.right - infoPtr->rcChannel.left - thumbwidth;
 
 		thumb->left = infoPtr->rcChannel.left +
-			(width*(lPos - infoPtr->lRangeMin))/range;
+			width*((lPos - infoPtr->lRangeMin)*1.0/range);
 		thumb->right = thumb->left + thumbwidth;
 		if ((infoPtr->dwStyle & (TBS_BOTH | TBS_TOP)) && !(infoPtr->dwStyle & TBS_NOTICKS))
 			thumb->top = 10;
@@ -1699,6 +1705,8 @@ static LRESULT _MouseMove (TRACKBAR_INFO *infoPtr, INT x, INT y)
 
 	infoPtr->lPos = dragPos;
 	TRACKBAR_UpdateThumb (infoPtr);
+
+	//LogIs(3, "dragPos=%d rectPos::[%s]\n", dragPos, wine_dbgstr_rect(&infoPtr->rcThumb));
 
 	notify_with_scroll (infoPtr, TB_THUMBTRACK | (infoPtr->lPos<<16));
 
