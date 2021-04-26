@@ -6,8 +6,9 @@
 
 extern void TAB_Register();
 
-TabLayout::TabLayout(HINSTANCE hInstance, HWND hParent)
+void TabLayout::init(HINSTANCE hInstance, HWND hParent)
 {
+	WindowBase::init(hInstance, hParent);
 	TAB_Register();
 
 	int style = WS_CHILD | WS_VISIBLE 

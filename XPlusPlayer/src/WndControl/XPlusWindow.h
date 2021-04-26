@@ -3,11 +3,13 @@
 #include "TabLayout.h"
 #include "ButtonList.h"
 #include "SimplePlayer.h"
+#include "SeekBar.h"
 
-class Frame : public WindowBase 
+class XPlusWindow : public WindowBase 
 {
 public:
-	Frame(HINSTANCE hInst);
+	XPlusWindow()=default;
+	void init(HINSTANCE hInstance, HWND hParent);
 
 	LRESULT RunProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l);
 	
@@ -17,13 +19,21 @@ public:
 
 	void Toggle();
 	HWND GetMediaPlayerHWND();
+	void ToggleFullScreen();
+	bool isFullScreen();
+	void MarkPlaying(bool playing=true);
+	bool PickFile();
 
-	TabLayout* tabLayout;
-	ButtonList* toolbar;
+	TabLayout _tabLayout;
+	ButtonList _toolbar;
+	SeekBar _seekbar;
 	VPlayerXunBo* mMediaPlayer0=NULL;
+	int _barsHeight=10;
+	HWND _hFullScreenBtmbar;
 protected:
 	WNDPROC _SysWndProc=NULL;
 	bool _isPlaying;
+	bool _isFullScreen=false;
 };
 
 

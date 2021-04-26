@@ -53,8 +53,7 @@ public:
 	void			Play();
 	void			Pause();
 	bool			IsPlaying();
-	void			PlayVideoFile(TCHAR* path);
-	BOOL			SetAPlayerWindowSize(HWND hwnd);
+	bool			PlayVideoFile(TCHAR* path);
 	void			OpenLocalFile(void);
 	void			MillisecondToText(int nMs, TCHAR * pszText);
 	HRESULT			CreateInstanceFromFile(const TCHAR * pcszPath, REFCLSID rclsid, 
@@ -71,7 +70,4 @@ public:
 	virtual	HRESULT	OnVideoSizeChanged(void);
 	virtual	HRESULT	OnDownloadCodec(BSTR strCodecPath);
 
-	//UI
-	void EnterFullScreen();
-	void ExitFullScreen();
 };

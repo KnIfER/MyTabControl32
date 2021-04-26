@@ -4,7 +4,8 @@
 class SeekBar : public WindowBase 
 {
 public:
-	SeekBar(HINSTANCE hInstance, HWND hParent);
+	SeekBar()=default;
+	void init(HINSTANCE hInstance, HWND hParent);
 
 	LRESULT RunProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l);
 	

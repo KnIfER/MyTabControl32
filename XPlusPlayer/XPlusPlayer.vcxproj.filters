@@ -36,7 +36,7 @@
     <ClCompile Include="XPlusPlayer.cpp">
       <Filter>Source Files\video_src</Filter>
     </ClCompile>
-    <ClCompile Include="src\WndControl\Frame.cpp">
+    <ClCompile Include="src\WndControl\XPlusWindow.cpp">
       <Filter>Source Files\video_src\WndControl</Filter>
     </ClCompile>
     <ClCompile Include="src\WndControl\TabLayout.cpp">
@@ -77,7 +77,7 @@
     <ClInclude Include="targetver.h">
       <Filter>Source Files\video_src</Filter>
     </ClInclude>
-    <ClInclude Include="src\WndControl\Frame.h">
+    <ClInclude Include="src\WndControl\XPlusWindow.h">
       <Filter>Source Files\video_src\WndControl</Filter>
     </ClInclude>
     <ClInclude Include="src\WndControl\TabLayout.h">

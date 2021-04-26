@@ -6,8 +6,13 @@
 
 
 
-ButtonList::ButtonList(HINSTANCE hInstance, HWND hParent)
+//ButtonList::ButtonList()
+//{
+//}
+
+void ButtonList::init(HINSTANCE hInstance, HWND hParent)
 {
+	WindowBase::init(hInstance, hParent);
 	DWORD style = 
 		WS_CHILD | WS_VISIBLE 
 		| WS_CLIPCHILDREN | WS_CLIPSIBLINGS 
@@ -60,8 +65,6 @@ ButtonList::ButtonList(HINSTANCE hInstance, HWND hParent)
 
 
 	_SysWndProc = (WNDPROC)SetWindowLongPtr(_hWnd, GWLP_WNDPROC, (LONG_PTR)ButtonList::WndProc);
-
-
 
 
 }

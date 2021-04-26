@@ -27,7 +27,7 @@
     <ClCompile Include="src\VideoPlayer\PlayerSink.cpp" />
     <ClCompile Include="src\VideoPlayer\simpleplayer.cpp" />
     <ClCompile Include="src\WndControl\ButtonList.cpp" />
-    <ClCompile Include="src\WndControl\Frame.cpp" />
+    <ClCompile Include="src\WndControl\XPlusWindow.cpp" />
     <ClCompile Include="src\WndControl\SeekBar.cpp" />
     <ClCompile Include="src\WndControl\TabLayout.cpp" />
   </ItemGroup>
@@ -41,7 +41,7 @@
     <ClInclude Include="src\VideoPlayer\simpleplayer.h" />
     <ClInclude Include="src\VideoPlayer\VideoPlayer.h" />
     <ClInclude Include="src\WndControl\ButtonList.h" />
-    <ClInclude Include="src\WndControl\Frame.h" />
+    <ClInclude Include="src\WndControl\XPlusWindow.h" />
     <ClInclude Include="src\WndControl\SeekBar.h" />
     <ClInclude Include="src\WndControl\TabLayout.h" />
     <ClInclude Include="src\WndControl\WindowBase.h" />

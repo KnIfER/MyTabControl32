@@ -10,8 +10,22 @@ public:
 	HWND getHWND() {
 		return _hWnd;
 	};
-	HWND getHParent(){
+	HWND getHParent() {
 		return _hParent;
+	};
+	void init(HINSTANCE hInstance, HWND hParent) {
+		_hInst=hInstance;
+		_hParent=hParent;
+	};
+	LONG getHeight() {
+		RECT rc;
+		GetClientRect(_hWnd, &rc);
+		return rc.bottom;
+	};
+	LONG getWidth() {
+		RECT rc;
+		GetClientRect(_hWnd, &rc);
+		return rc.right;
 	};
 protected:
 	HINSTANCE _hInst;

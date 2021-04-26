@@ -7,7 +7,7 @@
 
 extern void TRACKBAR_Register (void);
 
-SeekBar::SeekBar(HINSTANCE hInstance, HWND hParent)
+void SeekBar::init(HINSTANCE hInstance, HWND hParent)
 {
 	TRACKBAR_Register();
 
@@ -36,9 +36,6 @@ SeekBar::SeekBar(HINSTANCE hInstance, HWND hParent)
 
 
 	_SysWndProc = (WNDPROC)SetWindowLongPtr(_hWnd, GWL_WNDPROC, (LONG_PTR)SeekBar::WndProc);
-
-
-
 
 
 }

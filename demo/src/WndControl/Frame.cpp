@@ -43,17 +43,17 @@ HWND WINAPI CreateRebar (HWND hwndOwner, HWND htoolbar)
 	rbBand.hbmBack = NULL; 
 
 
-	// Get the height of the toolbar.
+	// Get the height of the _toolbar.
 	dwBtnSize = SendMessage(htoolbar, TB_GETBUTTONSIZE, 0, 0);
 
-	// Set values unique to the band with the toolbar.
+	// Set values unique to the band with the _toolbar.
 	rbBand.lpText = (LPWSTR)L"Tool Bar";
 	rbBand.hwndChild = htoolbar;
 	rbBand.cxMinChild = 0;
 	rbBand.cyMinChild = HIWORD(dwBtnSize);
 	rbBand.cx = 250;
 
-	// Add the band that has the toolbar.
+	// Add the band that has the _toolbar.
 	SendMessage(hwndRB, RB_INSERTBAND, (WPARAM)-1, (LPARAM)&rbBand);
 	return (hwndRB);
 }
@@ -87,7 +87,7 @@ void Register(HINSTANCE hInstance)
 	RegisterClass(&wndclass);
 }
 
-Frame::Frame(HINSTANCE hInstance)
+XPlusWindow::XPlusWindow(HINSTANCE hInstance)
 {
 	Frame_Register(hInstance);
 
@@ -112,24 +112,24 @@ Frame::Frame(HINSTANCE hInstance)
 
 	//_SysWndProc = (WNDPROC)GetWindowLongPtr(_hWnd, GWL_WNDPROC);
 
-	//_SysWndProc = (WNDPROC)SetWindowLongPtr(_hWnd, GWL_WNDPROC, (LONG_PTR)Frame::WndProc);
+	//_SysWndProc = (WNDPROC)SetWindowLongPtr(_hWnd, GWL_WNDPROC, (LONG_PTR)XPlusWindow::WndProc);
 
-	//tabLayout = new TabLayout(hInstance, _hWnd);
+	//_tabLayout = new TabLayout(hInstance, _hWnd);
 
-	toolbar = new ButtonList(hInstance, _hWnd);
+	_toolbar = new ButtonList(hInstance, _hWnd);
 
-	//CreateRebar(_hWnd, toolbar->getHWND());
+	//CreateRebar(_hWnd, _toolbar->getHWND());
 
 	RECT rect;
 	GetClientRect(_hWnd, &rect);
 
-	MoveWindow(toolbar->getHWND(), rect.left, 100+rect.top, rect.right, 24, true);
+	MoveWindow(_toolbar->getHWND(), rect.left, 100+rect.top, rect.right, 24, true);
 
-	SetWindowPos(toolbar->getHWND(), 0 , 100+rect.left
+	SetWindowPos(_toolbar->getHWND(), 0 , 100+rect.left
 		, 100+rect.top, rect.right, 12, SWP_SHOWWINDOW);
 }
 
-void Frame::showWindow()
+void XPlusWindow::showWindow()
 {
 	ShowWindow(_hWnd, SW_SHOW);
 	UpdateWindow(_hWnd);
@@ -138,7 +138,7 @@ void Frame::showWindow()
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
 {
-	Frame* app = (Frame*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	XPlusWindow* app = (XPlusWindow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	static TCHAR s[] = TEXT("Hello, Windows.");
 	switch (msg)
 	{
@@ -201,16 +201,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
 	{
 		RECT rect;
 		GetClientRect(hwnd, &rect);
-		if (app->tabLayout)
+		if (app->_tabLayout)
 		{
-			MoveWindow(app->tabLayout->getHWND(), rect.left, rect.top, rect.right, rect.bottom, true);
+			MoveWindow(app->_tabLayout->getHWND(), rect.left, rect.top, rect.right, rect.bottom, true);
 		}
-		if (app->toolbar)
+		if (app->_toolbar)
 		{
-			SendMessage(app->toolbar->getHWND(), TB_AUTOSIZE, 0, 0);
-			//MoveWindow(app->toolbar->getHWND(), 1000+rect.left, rect.top, rect.right, rect.bottom, true);
+			SendMessage(app->_toolbar->getHWND(), TB_AUTOSIZE, 0, 0);
+			//MoveWindow(app->_toolbar->getHWND(), 1000+rect.left, rect.top, rect.right, rect.bottom, true);
 
-			//SetWindowPos(app->toolbar->getHWND(), 0
+			//SetWindowPos(app->_toolbar->getHWND(), 0
 			//	, 1000+rect.left, rect.top, rect.right, rect.bottom, SWP_SHOWWINDOW);
 		}
 		return 0;

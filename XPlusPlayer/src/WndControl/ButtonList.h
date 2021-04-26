@@ -4,7 +4,8 @@
 class ButtonList : public WindowBase 
 {
 public:
-	ButtonList(HINSTANCE hInstance, HWND hParent);
+	ButtonList()=default;
+	void init(HINSTANCE hInstance, HWND hParent);
 
 	LRESULT RunProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l);
 	

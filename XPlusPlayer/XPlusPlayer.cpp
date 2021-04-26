@@ -1,5 +1,5 @@
 #include <windows.h>
-#include "Frame.h"
+#include "XPlusWindow.h"
 #include "TabLayout.h"
 #include "XPlusPlayer.h"
 #include <iostream>
@@ -11,23 +11,63 @@ struct DemoData
 	int image;
 };
 
-DemoData demoData[]{
-	{L"happy", 0}
-	,{L"happy for what", 1}
-	,{L"sad", 0}
-	,{L"sad for what", 1}
-	,{L"Values，何为价值观", 2}
-	,{L"成功秘诀.pdf", 3}
-	,{L"happy", 0}
-	,{L"happy", 0}
-	,{L"SecretToHappiness.pdf", 4}
-	,{L"MasterCPP.pdf", 4}
-	,{L"happy", 0}
-	,{L"happy", 0}
-	,{L"Your photo.png", 5}
-	,{L"happy", 0}
-	,{L"happy", 0}
-};
+XPlusWindow XPP;
+
+void hookMouseMove(MSG & msg)
+{
+	int yPos = msg.pt.y;
+	RECT rc;
+	GetClientRect(XPP.getHWND(), &rc);
+	if (IsWindowVisible(XPP._hFullScreenBtmbar))
+	{
+		if (!XPP._seekbar._isSeeking && yPos<rc.bottom-XPP._barsHeight-12)
+		{
+			ShowWindow(XPP._hFullScreenBtmbar, SW_HIDE);
+		}
+	}
+	else if (yPos>=rc.bottom-XPP._barsHeight) // -4
+	{
+		ShowWindow(XPP._hFullScreenBtmbar, SW_SHOW);
+	}
+}
+
+void hookLButtonDown(MSG & msg)
+{
+	if(XPP.isFullScreen())
+		return;
+	if (msg.hwnd==XPP._toolbar.getHWND())
+	{
+		if (GET_X_LPARAM(msg.lParam)>XPP._toolbar.getHeight()*5)
+		{
+			ReleaseCapture();
+			SendMessage(XPP.getHWND(), WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
+		}
+		return;
+	}
+	if (IsChild(XPP.GetMediaPlayerHWND(), msg.hwnd))
+	{
+		ReleaseCapture();
+		SendMessage(XPP.getHWND(), WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
+		return;
+	}
+}
+
+void hookMButtonClick(MSG & msg)
+{
+	if (msg.hwnd==XPP._toolbar.getHWND())
+	{
+		if (GET_X_LPARAM(msg.lParam)>XPP._toolbar.getHeight()*5)
+		{
+			XPP.ToggleFullScreen();
+		}
+		return;
+	}
+	if (IsChild(XPP.GetMediaPlayerHWND(), msg.hwnd))
+	{
+		XPP.ToggleFullScreen();
+		return;
+	}
+}
 
 int APIENTRY 
 wWinMain(_In_ HINSTANCE hInstance,
@@ -45,30 +85,9 @@ wWinMain(_In_ HINSTANCE hInstance,
 	icc.dwICC = ICC_BAR_CLASSES;
 	InitCommonControlsEx(&icc);
 
-	Frame* app = new Frame(hInstance);
+	XPP.init(hInstance, NULL);
 
-	app->showWindow();
-
-
-	if (app->tabLayout)
-	{
-		for (size_t i = 0; i < 15; i++)
-		{
-			DemoData & dd = demoData[i];
-			app->tabLayout
-				->addTab(dd.title, dd.image);
-		}
-
-		TCHAR buffer[64];
-		for (size_t i = 0; i < 80; i++)
-		{
-			swprintf_s(buffer, L"happy#%d", i);
-			app->tabLayout->addTab(buffer, 0);
-		}
-	}
-
-	SendMessage(app->getHWND(), WM_SIZE, 0, 0);
-
+	XPP.showWindow();
 
 	MSG    msg;
 
@@ -77,16 +96,15 @@ wWinMain(_In_ HINSTANCE hInstance,
 
 		if (msg.message==WM_LBUTTONDOWN)
 		{
-			if (msg.hwnd==app->toolbar->getHWND())
-			{
-
-			}
-			if (IsChild(app->GetMediaPlayerHWND(), msg.hwnd))
-			{
-				ReleaseCapture();
-				SendMessage(app->getHWND(), WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
-
-			}
+			hookLButtonDown(msg);
+		}
+		if (msg.message==WM_MOUSEMOVE && XPP.isFullScreen())
+		{
+			hookMouseMove(msg);
+		}
+		if (msg.message==WM_MBUTTONUP)
+		{
+			hookMButtonClick(msg);
 		}
 
 		TranslateMessage(&msg);

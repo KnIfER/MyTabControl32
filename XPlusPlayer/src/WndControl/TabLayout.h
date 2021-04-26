@@ -4,8 +4,8 @@
 class TabLayout : public WindowBase 
 {
 public:
-	TabLayout(HINSTANCE hInstance, HWND hParent);
-
+	TabLayout()=default;
+	void init(HINSTANCE hInstance, HWND hParent);
 	LRESULT RunProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l);
 	
 	static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)

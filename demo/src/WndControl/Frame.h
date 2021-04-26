@@ -3,22 +3,22 @@
 #include "TabLayout.h"
 #include "ButtonList.h"
 
-class Frame : public WindowBase 
+class XPlusWindow : public WindowBase 
 {
 public:
-	Frame(HINSTANCE hInst);
+	XPlusWindow(HINSTANCE hInst);
 
 	//LRESULT RunProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l);
 	//
 	//static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	//{
-	//	return ((Frame*)GetWindowLongPtr(hwnd, GWLP_USERDATA))->RunProc(hwnd, message, wParam, lParam);
+	//	return ((XPlusWindow*)GetWindowLongPtr(hwnd, GWLP_USERDATA))->RunProc(hwnd, message, wParam, lParam);
 	//}
 
 	void showWindow();
 
-	TabLayout* tabLayout;
-	ButtonList* toolbar;
+	TabLayout* _tabLayout;
+	ButtonList* _toolbar;
 protected:
 	WNDPROC _SysWndProc=NULL;
 

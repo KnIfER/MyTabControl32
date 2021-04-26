@@ -44,17 +44,17 @@ wWinMain(_In_ HINSTANCE hInstance,
 	icc.dwICC = ICC_BAR_CLASSES;
 	InitCommonControlsEx(&icc);
 
-	Frame* app = new Frame(hInstance);
+	XPlusWindow* app = new XPlusWindow(hInstance);
 
 	app->showWindow();
 
 
-	if (app->tabLayout)
+	if (app->_tabLayout)
 	{
 		for (size_t i = 0; i < 15; i++)
 		{
 			DemoData & dd = demoData[i];
-			app->tabLayout
+			app->_tabLayout
 				->addTab(dd.title, dd.image);
 		}
 
@@ -62,7 +62,7 @@ wWinMain(_In_ HINSTANCE hInstance,
 		for (size_t i = 0; i < 80; i++)
 		{
 			swprintf_s(buffer, L"happy#%d", i);
-			app->tabLayout->addTab(buffer, 0);
+			app->_tabLayout->addTab(buffer, 0);
 		}
 	}
 
