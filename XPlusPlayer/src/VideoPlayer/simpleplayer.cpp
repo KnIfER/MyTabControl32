@@ -1,5 +1,20 @@
-
-#include "simpleplayer.h"
+/** Copyright
+* 
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+* 
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+* 
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation.
+*/
+#include "Simpleplayer.h"
 #include "Resource.h"
 #include "PlayerSink.h"
 #include <CommCtrl.h>
@@ -22,15 +37,15 @@
 
 
 CPlayerSink					g_APlayerSink;
-HWND						g_hDialog = NULL;
-HWND						g_hTextWnd = NULL;
-HWND						g_hFullScreenWnd = NULL;
 
 
 HRESULT VPlayerXunBo::OnMessage(LONG nMessage, LONG wParam, LONG lParam)
 {
 	switch(nMessage)
 	{
+	case WM_SETFOCUS:
+		LogIs(2, "WM_SETFOCUS");
+		return TRUE;
 	case WM_LBUTTONDBLCLK:
 		break;
 
@@ -116,9 +131,14 @@ HRESULT VPlayerXunBo::OnStateChanged(LONG nOldState, LONG nNewState)
 HRESULT VPlayerXunBo::OnOpenSucceeded()
 {
 	//SetWindowText(GetDlgItem(g_hTextWnd, IDPAUSE), _T("暂停"));
-	m_nDuration = m_pAPlayer->GetDuration();
-	SendMessage(_hParent, MM_PREPARED, m_nDuration, 0);
+	//m_nDuration = m_pAPlayer->GetDuration();
+	SendMessage(_hParent, MM_PREPARED, m_pAPlayer->GetDuration(), 0);
 	return S_OK;
+}
+
+HRESULT VPlayerXunBo::GetDuration()
+{
+	return m_pAPlayer?m_pAPlayer->GetDuration():0;
 }
 
 HRESULT VPlayerXunBo::OnSeekCompleted(LONG nPosition)
@@ -152,8 +172,8 @@ HRESULT VPlayerXunBo::OnDownloadCodec(BSTR strCodecPath)
 
 void VPlayerXunBo::Initialize()
 {
-	m_nPosition = 0;
-	m_nDuration = 1000;
+	//m_nPosition = 0;
+	//m_nDuration = 1000;
 	m_pAPlayer = NULL;
 	m_pConnectionPoint = NULL;
 	m_dwCookie = 0;
@@ -254,16 +274,20 @@ BOOL VPlayerXunBo::CreateAPlayerWindow()
 
 	if (SUCCEEDED(hr))
 	{
+		// |WS_EX_NOACTIVATE
 		_hWnd = ::CreateWindowEx(WS_EX_TOOLWINDOW, _T(ATLAXWIN_CLASS), _T(""),
 										WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
 										CW_USEDEFAULT, 0, CW_USEDEFAULT, 0,
-										g_hTextWnd, NULL, NULL, NULL);
+										_hParent, NULL, NULL, NULL);
+		// https://stackoverflow.com/questions/852856/win32-c-creating-a-popup-window-without-stealing-focus
+		ShowWindow(_hWnd, SW_SHOWNOACTIVATE);
+		SetWindowLong(_hWnd, GWLP_USERDATA, (LONG_PTR)this);
 	}
 
 	if (::IsWindow(_hWnd))
 	{
 		hr = AtlAxAttachControl(m_pAPlayer, _hWnd, NULL);
-		//_SysWndProc = SetWindowLong(_hWnd, GWLP_WNDPROC, );
+		_SysWndProc = (WNDPROC)SetWindowLong(_hWnd, GWLP_WNDPROC, (LONG_PTR)VPlayerXunBo::WndProc);
 	}
 
 	CComQIPtr<IConnectionPointContainer> spContainer;
@@ -333,6 +357,11 @@ bool VPlayerXunBo::IsPlaying()
 	return m_pAPlayer!=NULL && m_pAPlayer->GetState()==PS_PLAY;
 }
 
+bool VPlayerXunBo::IsPaused()
+{
+	return m_pAPlayer!=NULL && m_pAPlayer->GetState()==PS_PAUSED;
+}
+
 void VPlayerXunBo::Stop()
 {
 	if (m_pAPlayer != NULL 
@@ -346,6 +375,19 @@ void VPlayerXunBo::Stop()
 			//SetWindowText(GetDlgItem(hwnd, IDC_STATIC1), _T("00:00:00/00:00:00"));
 			//SetWindowText(GetDlgItem(g_hTextWnd, IDPAUSE), _T("播放"));
 		}
+	}
+}
+
+long VPlayerXunBo::GetPosition()
+{
+	return m_pAPlayer?m_pAPlayer->GetPosition():0;
+}
+
+void VPlayerXunBo::SetPosition(long pos)
+{
+	if (m_pAPlayer)
+	{
+		m_pAPlayer->SetPosition(pos);
 	}
 }
 
@@ -368,8 +410,9 @@ BOOL Dlg_OnInitDialog(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 
 CComModule _module;
 
-VPlayerXunBo::VPlayerXunBo(HINSTANCE hInstance, HWND hParent)
+VPlayerXunBo::VPlayerXunBo(int & error_code, HINSTANCE hInstance, HWND hParent)
 {
+	error_code=1;
 	// 如果一个运行在 Windows XP 上的应用程序清单指定要
 	// 使用 ComCtl32.dll 版本 6 或更高版本来启用可视化方式，
 	//则需要 InitCommonControlsEx()。  否则，将无法创建窗口。
@@ -383,7 +426,7 @@ VPlayerXunBo::VPlayerXunBo(HINSTANCE hInstance, HWND hParent)
 
 	AtlAxWinInit();
 
-	_hParent = hParent;
+	WindowBase::init(hInstance, hParent);
 	//g_hDialog = hwnd;
 
 	//chSETDLGICONS(hwnd, IDI_ICON1);
@@ -391,19 +434,33 @@ VPlayerXunBo::VPlayerXunBo(HINSTANCE hInstance, HWND hParent)
 
 	SetTimer(hParent, 1, 1000, NULL);
 
-	g_hTextWnd = hParent;
 	Initialize();
 	if (CreateAPlayerWindow())
 	{
+		error_code=0;
 	}
 	else
 	{
 		//HWND hWnd = GetDlgItem(hwnd, IDC_STATIC1);
 		//SetWindowText(hWnd, _T("加载APlayer失败！"));
+		error_code=-1;
 	}
 
 
 	//DialogBoxParam(hInstance, MAKEINTRESOURCE(IDD_DIALOG_PLAYER), 
 	//				NULL, Dlg_Proc, _ttoi(lpCmdLine));
 
+}
+
+LRESULT VPlayerXunBo::RunProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
+{
+	switch (msg)
+	{
+	case WM_SETFOCUS:
+		LogIs(2, "WM_SETFOCUS");
+		return TRUE;
+	default:
+		break;
+	}
+	return ::CallWindowProc(_SysWndProc, hwnd, msg, w, l);
 }

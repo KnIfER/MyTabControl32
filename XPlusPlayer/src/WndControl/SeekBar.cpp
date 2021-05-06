@@ -1,4 +1,19 @@
-
+/** Copyright 2021 KnIfER JK. Chen
+* 
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+* 
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+* 
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation.
+*/
 #include "SeekBar.h"
 
 #include "resource.h"
@@ -45,6 +60,11 @@ void SeekBar::SetPosition(LONG pos)
 	SendWndMessage(TBM_SETPOS, true, pos);
 }
 
+void SeekBar::SetPositionAndMax(LONG pos, LONG max)
+{
+	SendWndMessage(TBM_SETPOS, max, pos);
+}
+
 LONG SeekBar::GetPosition()
 {
 	return (LONG)SendWndMessage(TBM_GETPOS, 0, 0);
@@ -89,9 +109,5 @@ LRESULT SeekBar::RunProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
 	default:
 		break;
 	}
-	if (_SysWndProc)
-	{
-		::CallWindowProc(_SysWndProc, hwnd, msg, w, l);
-	}
-	return ::DefWindowProc(hwnd, msg, w, l);
+	return ::CallWindowProc(_SysWndProc, hwnd, msg, w, l);
 }

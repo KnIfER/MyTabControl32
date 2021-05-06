@@ -4,6 +4,7 @@
 * Copyright 1998, 1999 Eric Kohl
 * Copyright 1998, 1999 Alex Priem
 * Copyright 2002 Dimitrie O. Paun
+* Copyright 2021 KnIfER JK. Chen
 *
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU Lesser General Public
@@ -103,6 +104,7 @@ need to be recalculated */
 #define TIC_SELECTIONMARK       (TIC_SELECTIONMARKMAX | TIC_SELECTIONMARKMIN)
 
 static LRESULT _MouseMove (TRACKBAR_INFO *infoPtr, INT x, INT y);
+static inline LRESULT _SetRangeMax (TRACKBAR_INFO *infoPtr, BOOL redraw, LONG lMax);
 
 static const WCHAR themeClass[] = L"Trackbar";
 
@@ -1197,10 +1199,15 @@ static inline LONG _SetPageSize (TRACKBAR_INFO *infoPtr, LONG lPageSize)
 	return lTemp;
 }
 
-static inline LRESULT _SetPos (TRACKBAR_INFO *infoPtr, BOOL fPosition, LONG lPosition)
+static inline LRESULT _SetPos (TRACKBAR_INFO *infoPtr, UINT fPosition, LONG lPosition)
 {
 	LONG oldPos = infoPtr->lPos;
 	infoPtr->lPos = lPosition;
+
+	if (fPosition>1 && infoPtr->lRangeMax != fPosition)
+	{
+		_SetRangeMax(infoPtr, false, fPosition);
+	}
 
 	if (infoPtr->lPos < infoPtr->lRangeMin)
 		infoPtr->lPos = infoPtr->lRangeMin;
@@ -1832,7 +1839,7 @@ static LRESULT WINAPI TRACKBAR_WindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, 
 	case TBM_SETBUDDY: return (LRESULT) _SetBuddy(infoPtr, (BOOL)wParam, (HWND)lParam);
 	case TBM_SETLINESIZE: return _SetLineSize (infoPtr, (LONG)lParam);
 	case TBM_SETPAGESIZE: return _SetPageSize (infoPtr, (LONG)lParam);
-	case TBM_SETPOS: return _SetPos (infoPtr, (BOOL)wParam, (LONG)lParam);
+	case TBM_SETPOS: return _SetPos (infoPtr, (UINT)wParam, (LONG)lParam);
 	case TBM_SETRANGE: return _SetRange (infoPtr, (BOOL)wParam, (LONG)lParam);
 	case TBM_SETRANGEMAX: return _SetRangeMax (infoPtr, (BOOL)wParam, (LONG)lParam);
 	case TBM_SETRANGEMIN: return _SetRangeMin (infoPtr, (BOOL)wParam, (LONG)lParam);

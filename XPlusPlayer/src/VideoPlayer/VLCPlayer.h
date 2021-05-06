@@ -15,22 +15,25 @@
 * Foundation.
 */
 #pragma once
-#include "InsituDebug.h"
-#include "../WndControl/WindowBase.h"
 
-#define MM_PREPARED              (WM_USER)
+#include "WindowBase.h"
+#include <VideoPlayer.h>
 
-class VideoPlayer : public WindowBase
+
+class VLCPlayer : public VideoPlayer
 {
 public:
-	virtual void Play()=0;
-	virtual void Stop()=0;
-	virtual void Pause()=0;
-	virtual bool IsPlaying()=0;
-	virtual bool IsPaused()=0;
-	virtual long GetPosition()=0;
-	virtual void SetPosition(long pos)=0;
-	virtual long GetDuration()=0;
-	virtual bool PlayVideoFile(TCHAR* path)=0;
-	virtual void SetFullScreen(bool val){};
+	VLCPlayer(int & error_code, HINSTANCE hInstance, HWND hParent);
+	void			Stop() override;
+	void			Play() override;
+	void			Pause() override;
+	bool			IsPlaying() override;
+	bool			IsPaused() override;
+	long			GetPosition() override;
+	void			SetPosition(long pos) override;
+	long			GetDuration() override;
+	bool			PlayVideoFile(TCHAR* path) override;
+	void			SetFullScreen(bool val) override;
+private:
+	LONG_PTR mMediaPlayer;
 };

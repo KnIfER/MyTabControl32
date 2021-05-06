@@ -1,4 +1,19 @@
-
+/** Copyright 2021 KnIfER JK. Chen
+* 
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+* 
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+* 
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation.
+*/
 #include "XPlusWindow.h"
 #include "resource.h"
 #include "SeekBar.h"
@@ -34,6 +49,8 @@ void XPlus_Register(HINSTANCE hInstance)
 void XPlus_UnRegister()
 {
 }
+
+extern VideoPlayer* initVidePlayerImpl(XPlusWindow* xpp, int type);
 
 void XPlusWindow::init(HINSTANCE hInstance, HWND hParent)
 {
@@ -78,7 +95,11 @@ void XPlusWindow::init(HINSTANCE hInstance, HWND hParent)
 
 
 
-	mMediaPlayer0 = new VPlayerXunBo(hInstance, _hWnd);
+	mMediaPlayer0 = initVidePlayerImpl(this, 0);
+	if (mMediaPlayer0)
+	{
+		_hPlayer = mMediaPlayer0->getHWND();
+	}
 }
 
 void XPlusWindow::showWindow()
@@ -115,7 +136,7 @@ void XPlusWindow::ToggleFullScreen()
 			wc.hIcon = NULL;
 			wc.hInstance = _hInst;
 			wc.lpfnWndProc = FullScreenBarsProc;
-			wc.lpszClassName = _T("FullScreenBarsHolder");
+			wc.lpszClassName = TEXT("FullScreenBarsHolder");
 			wc.lpszMenuName = 0;
 			wc.style = CS_GLOBALCLASS | CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
 
@@ -127,13 +148,14 @@ void XPlusWindow::ToggleFullScreen()
 			}
 
 			_hFullScreenBtmbar = ::CreateWindow(wc.lpszClassName
-				, _T(""), WS_VISIBLE | WS_CHILD
+				, TEXT(""), WS_VISIBLE | WS_CHILD
 				, 0, 0, 100, 100,
 				_hWnd, NULL, NULL, this);
 		}
 		SetParent(_toolbar.getHWND(), _hFullScreenBtmbar);
 		SetParent(_seekbar.getHWND(), _hFullScreenBtmbar);
 
+		if (mMediaPlayer0) mMediaPlayer0->SetFullScreen(true);
 		_isFullScreen = true;
 		GetWindowRect(hThisFSc, &rcNScPos);
 		SetWindowLong(hThisFSc, GWL_STYLE , style&~dwNScStyle );
@@ -150,6 +172,7 @@ void XPlusWindow::ToggleFullScreen()
 		SetParent(_toolbar.getHWND(), _hWnd);
 		SetParent(_seekbar.getHWND(), _hWnd);
 		ShowWindow(_hFullScreenBtmbar, SW_HIDE);
+		if (mMediaPlayer0) mMediaPlayer0->SetFullScreen(false);
 		_isFullScreen = false;
 		SetWindowLong(hThisFSc, GWL_STYLE , style|dwNScStyle );
 		style = GetWindowLong(hThisFSc, GWL_EXSTYLE);
@@ -160,30 +183,35 @@ void XPlusWindow::ToggleFullScreen()
 	}
 }
 
-bool XPlusWindow::isFullScreen()
+bool XPlusWindow::IsFullScreen()
 {
 	return (GetWindowLong(_hWnd, GWL_STYLE)&WS_CAPTION)==0;
 	//return _isFullScreen;
 }
 
+bool XPlusWindow::IsMediaPlayerWindow(HWND hwnd)
+{
+	return hwnd==_hPlayer||IsChild(_hPlayer, hwnd);
+}
+
 HWND XPlusWindow::GetMediaPlayerHWND()
 {
-	return mMediaPlayer0?mMediaPlayer0->getHWND():NULL;
+	return _hPlayer;
 }
 
 void XPlusWindow::Toggle()
 {
 	if (mMediaPlayer0)
 	{
-		if (_isPlaying=!_isPlaying)
-		{
-			mMediaPlayer0->Play();
-		}
-		else 
+		if (_isPlaying)
 		{
 			mMediaPlayer0->Pause();
 		}
-		_toolbar.ReplaceIcon(0, _isPlaying?IDI_PAUSE:IDI_PLAY);
+		else 
+		{
+			mMediaPlayer0->Play();
+		}
+		MarkPlaying(!_isPlaying);
 	}
 }
 
@@ -193,6 +221,10 @@ void XPlusWindow::MarkPlaying(bool playing)
 	{
 		_isPlaying = playing;
 		_toolbar.ReplaceIcon(0, _isPlaying?IDI_PAUSE:IDI_PLAY);
+		RECT rc;
+		GetClientRect(_toolbar.getHWND(), &rc);
+		rc.right = rc.bottom;
+		InvalidateRect(_toolbar.getHWND(), &rc, TRUE);
 	}
 }
 
@@ -243,27 +275,27 @@ bool XPlusWindow::PickFile()
 
 	// Build filter
 	TCHAR formats[512];
-	lstrcpy(formats, _T(""));
-	lstrcat(formats, _T("*.wmv;*.wmp;*.wm;*.asf;*.wma;*.avi;*.wav;*.mpg;*.mpeg;*.dat;"));
-	lstrcat(formats, _T("*.ts;*.mpa;*.mp2;*.vob;*.ifo;*.mp3;*.mid;*.ogm;*.ogg;*.cda;"));
-	lstrcat(formats, _T("*.d2v;*.mp4;*.3gp;*.mkv;*.rm;*.ram;*.rmvb;*.rpm;*.ra;*.mov;"));
-	lstrcat(formats, _T("*.qt;*.amr;*.mpc;*.flv;*.swf;"));
-	lstrcat(formats, _T("*.evo;*.tta;*.m4b;"));
-	lstrcat(formats, _T("*.xv;*.xvx;*.xlmv"));
+	lstrcpy(formats, TEXT(""));
+	lstrcat(formats, TEXT("*.wmv;*.wmp;*.wm;*.asf;*.wma;*.avi;*.wav;*.mpg;*.mpeg;*.dat;"));
+	lstrcat(formats, TEXT("*.ts;*.mpa;*.mp2;*.vob;*.ifo;*.mp3;*.mid;*.ogm;*.ogg;*.cda;"));
+	lstrcat(formats, TEXT("*.d2v;*.mp4;*.3gp;*.mkv;*.rm;*.ram;*.rmvb;*.rpm;*.ra;*.mov;"));
+	lstrcat(formats, TEXT("*.qt;*.amr;*.mpc;*.flv;*.swf;"));
+	lstrcat(formats, TEXT("*.evo;*.tta;*.m4b;"));
+	lstrcat(formats, TEXT("*.xv;*.xvx;*.xlmv"));
 
 	TCHAR filters[512];
 	TCHAR * pFilter = filters;
-	wsprintf(pFilter, _T("全部支持的媒体(%s)"), formats);
+	wsprintf(pFilter, TEXT("全部支持的媒体(%s)"), formats);
 	pFilter += (lstrlen(pFilter) + 1);
 	lstrcpy(pFilter, formats);
 	pFilter += (lstrlen(pFilter) + 1);
-	lstrcpy(pFilter, _T("所有文件(*.*)"));
+	lstrcpy(pFilter, TEXT("所有文件(*.*)"));
 	pFilter += (lstrlen(pFilter) + 1);
-	lstrcpy(pFilter, _T("*.*"));
+	lstrcpy(pFilter, TEXT("*.*"));
 	pFilter += (lstrlen(pFilter) + 1);
 	*pFilter = 0; pFilter++;
 
-	BOOL ret = PickFileDlg(_hWnd, FALSE, _T("选择媒体文件"), filters, filepath, MAX_PATH, NULL, 0);
+	BOOL ret = PickFileDlg(_hWnd, FALSE, TEXT("选择媒体文件"), filters, filepath, MAX_PATH, NULL, 0);
 	
 	if(ret)
 	{
@@ -281,7 +313,7 @@ LRESULT XPlusWindow::RunProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		HDROP hDropInfo = (HDROP)wParam;
 		UINT  nFileCount = ::DragQueryFile(hDropInfo, (UINT)-1, NULL, 0);
-		TCHAR szFileName[_MAX_PATH] = _T("");
+		TCHAR szFileName[_MAX_PATH] = TEXT("");
 		DWORD dwAttribute;
 
 		// 获取拖拽进来文件和文件夹
@@ -297,7 +329,14 @@ LRESULT XPlusWindow::RunProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			else
 			{
 				// filepath
-				mMediaPlayer0->PlayVideoFile(szFileName);
+				if (mMediaPlayer0)
+				{
+					mMediaPlayer0->PlayVideoFile(szFileName);
+				}
+				CHAR buffer[256]={0};
+				WideCharToMultiByte (CP_ACP, 0, szFileName
+					, -1, buffer, 256, 0, 0) ;
+
 				MarkPlaying();
 			}
 		}
@@ -364,7 +403,7 @@ LRESULT XPlusWindow::RunProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		int videoHeightAvailable = rect.bottom - rect.top;
 		int toolbarHeight = 0;
 		int seekbarHeight = 0;
-		bool fullScreen = isFullScreen();
+		bool fullScreen = IsFullScreen();
 		//if (fullScreen)
 		int barsHeight=0;
 
@@ -413,15 +452,10 @@ LRESULT XPlusWindow::RunProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	case WM_TIMER:
 	{
-		if (wParam != 1 || mMediaPlayer0->m_pAPlayer == NULL)
+		if ((wParam == 1)
+			&& (mMediaPlayer0->IsPlaying() || mMediaPlayer0->IsPaused()) )
 		{
-			break;
-		}
-		
-		if (mMediaPlayer0->m_pAPlayer->GetState() == PS_PLAY || 
-			mMediaPlayer0->m_pAPlayer->GetState() == PS_PAUSED)
-		{
-			mMediaPlayer0->m_nPosition = mMediaPlayer0->m_pAPlayer->GetPosition();
+			long pos = mMediaPlayer0->GetPosition();
 		
 			//TCHAR szPosition[64];
 			//TCHAR szDuration[64];
@@ -431,18 +465,15 @@ LRESULT XPlusWindow::RunProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			//lstrcat(szPosition, _T("/"));
 			//lstrcat(szPosition, szDuration);
 		
-			int nPos =  int (mMediaPlayer0->m_nPosition / (double)mMediaPlayer0->m_nDuration * 1000);
+			int nPos =  int (pos / (double)mMediaPlayer0->GetDuration() * 1000);
 			//SendMessage(GetDlgItem(hwnd, IDC_SLIDER1), TBM_SETPOS, (WPARAM)TRUE, (LPARAM)nPos);
 			
 			if (!_seekbar._isSeeking)
 			{
-				_seekbar.SetPosition(mMediaPlayer0->m_nPosition);
+				_seekbar.SetPositionAndMax(pos, mMediaPlayer0->GetDuration());
 			}
 
-			LogIs(3, "setPosition:: %d %d max=%d curr=%d\n", mMediaPlayer0->m_nPosition, mMediaPlayer0->m_nDuration, _seekbar.GetMax(), _seekbar.GetPosition());
-
-			//SendMessage(GetDlgItem(hwnd, IDC_SLIDER1), TBM_SETPOS, (WPARAM)TRUE, (LPARAM)nPos);
-			//SetWindowText(GetDlgItem(hwnd, IDC_STATIC1), szPosition);
+			//LogIs(3, "setPosition:: %d %d max=%d curr=%d\n", mMediaPlayer0->m_nPosition, mMediaPlayer0->m_nDuration, _seekbar.GetMax(), _seekbar.GetPosition());
 		}
 
 	}
@@ -454,13 +485,10 @@ LRESULT XPlusWindow::RunProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		//LogIs("SetTime GETPOS:: %ld \n", _seekbar->GetPosition());
 		if ((HWND)lParam==_seekbar.getHWND())
 		{
-			if (mMediaPlayer0->m_pAPlayer != NULL && _seekbar._isSeeking)
+			if (_seekbar._isSeeking && mMediaPlayer0
+				&& (mMediaPlayer0->IsPlaying() || mMediaPlayer0->IsPaused()) )
 			{
-				if (mMediaPlayer0->m_pAPlayer->GetState() == PS_PLAY || 
-					mMediaPlayer0->m_pAPlayer->GetState() == PS_PAUSED)
-				{
-					mMediaPlayer0->m_pAPlayer->SetPosition(wParam);
-				}
+				mMediaPlayer0->SetPosition(wParam);
 			}
 		}
 	}
@@ -473,10 +501,6 @@ LRESULT XPlusWindow::RunProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 		case VK_SPACE:
 			Toggle();
-			RECT rc;
-			GetClientRect(_toolbar.getHWND(), &rc);
-			rc.right = rc.bottom;
-			InvalidateRect(_toolbar.getHWND(), &rc, TRUE);
 		break;
 		default:
 			break;
@@ -504,7 +528,7 @@ LRESULT XPlusWindow::RunProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	break;
 	case MM_PREPARED:
 	{
-		LogIs("MPM_PREPARED\n");
+		LogIs("MPM_PREPARED %d\n", wParam);
 		if (hwnd==_hWnd)
 		{
 			_seekbar.SetMax(wParam);

@@ -45,7 +45,7 @@
     <ClCompile Include="src\WndControl\ButtonList.cpp">
       <Filter>Source Files\video_src\WndControl</Filter>
     </ClCompile>
-    <ClCompile Include="src\VideoPlayer\simpleplayer.cpp">
+    <ClCompile Include="src\VideoPlayer\Simpleplayer.cpp">
       <Filter>Source Files\video_src\VideoPlayer</Filter>
     </ClCompile>
     <ClCompile Include="src\VideoPlayer\PlayerSink.cpp">
@@ -56,6 +56,9 @@
     </ClCompile>
     <ClCompile Include="..\trackbar.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VideoPlayer\VideoPlayer.cpp">
+      <Filter>Source Files\video_src\VideoPlayer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -89,7 +92,7 @@
     <ClInclude Include="src\WndControl\ButtonList.h">
       <Filter>Source Files\video_src\WndControl</Filter>
     </ClInclude>
-    <ClInclude Include="src\VideoPlayer\simpleplayer.h">
+    <ClInclude Include="src\VideoPlayer\Simpleplayer.h">
       <Filter>Source Files\video_src\VideoPlayer</Filter>
     </ClInclude>
     <ClInclude Include="src\VideoPlayer\PlayerSink.h">

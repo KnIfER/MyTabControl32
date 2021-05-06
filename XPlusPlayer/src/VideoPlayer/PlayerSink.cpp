@@ -1,8 +1,7 @@
-
 #include <tchar.h>
 #include "playersink.h"
 #include "resource.h"
-#include "simpleplayer.h"
+#include "Simpleplayer.h"
 
 #define EventId_Message				1
 #define EventId_StateChanged		2
